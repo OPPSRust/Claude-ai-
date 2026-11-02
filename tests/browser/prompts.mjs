@@ -19,8 +19,9 @@ try {
     const store = { name: 'Kroger', level: 2 };
     const meal = { day: 1, type: 'Dinner', name: 'Chili', about: 'A pot of beans and beef.', minutes: 40, leftovers: false };
     return {
-      dinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(inp, store, { day: d, type: 'Dinner' }, [], 0)),
-      vegDinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(veg, store, { day: d, type: 'Dinner' }, [], 0)),
+      dinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(inp, store, { day: d, type: 'Dinner' }, 0)),
+      retry: [0, 1, 2].map((a) => cc.mealPrompt(inp, store, { day: 2, type: 'Dinner' }, a * 5)),
+      vegDinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(veg, store, { day: d, type: 'Dinner' }, 0)),
       list: cc.ingredientsPrompt(inp, meal, false),
       recipe: cc.recipePrompt({ inputs: inp, store, meals: [meal], list: [{ item: 'Ground beef', uses: [1] }] }, 0),
     };
@@ -31,6 +32,9 @@ try {
   }
   const ideas = r.dinners.map((t) => (t.match(/Build it around ([^.]+)\./) || [])[1]);
   if (ideas.some((x) => !x) || new Set(ideas).size !== 5) throw new Error('each day needs its own main ingredient: ' + JSON.stringify(ideas));
+  const retryIdeas = r.retry.map((t) => (t.match(/Build it around ([^.]+)\./) || [])[1]);
+  if (new Set(retryIdeas).size !== 3) throw new Error('each retry needs a different main ingredient: ' + JSON.stringify(retryIdeas));
+  if (/Already planned|leftovers/i.test(r.dinners[1])) throw new Error('meal prompt must not list earlier dishes or ask about leftovers');
   const vegIdeas = r.vegDinners.map((t) => (t.match(/Build it around ([^.]+)\./) || [])[1]).join(' ');
   if (/chicken|beef|pork|turkey|fish|sausage/i.test(vegIdeas)) throw new Error('vegetarian plan got a meat idea: ' + vegIdeas);
   if (!/Chili/.test(r.list) || !/comma-separated/.test(r.list)) throw new Error('ingredients prompt must name the meal and ask for a comma-separated list');

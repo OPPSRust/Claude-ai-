@@ -54,7 +54,7 @@ export function mealFromText(answer, slot) {
       name,
       about: text(o.about || o.description, 220),
       minutes: minutes(o.minutes),
-      leftovers: o.leftovers === true || o.leftovers === 'true',
+      leftovers: false, // only the app's fallback makes leftover nights; the model's flag is unreliable
       recipe: null,
     };
   }
@@ -85,7 +85,6 @@ export async function planMeals({ slots, ask, onMeal = () => {}, attempts = 3 })
     let meal = null;
     for (let attempt = 0; attempt < attempts && !meal; attempt++) {
       const candidate = mealFromText(await ask(slot, done.slice(), attempt), slot);
-      if (candidate && !done.length) candidate.leftovers = false; // nothing to be left over from yet
       // A small model often repeats itself; a repeat counts as no answer.
       if (candidate && !done.some((m) => m.name.toLowerCase() === candidate.name.toLowerCase())) meal = candidate;
     }

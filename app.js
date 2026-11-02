@@ -723,8 +723,11 @@ function ideaFor(inp, slot, offset = 0) {
   return list[(slot.day - 1 + offset) % list.length];
 }
 
-/** Prompt for one meal. No example dish, because a small model copies examples. */
-function mealPrompt(inp, store, slot, done, offset = 0) {
+/**
+ * Prompt for one meal. No example dish and no list of earlier dishes, because a small model
+ * copies whatever it is shown; each day (and each retry) gets its own main ingredient instead.
+ */
+function mealPrompt(inp, store, slot, offset = 0) {
   const money = moneyFmt(inp.currency);
   const per = inp.budget / (inp.people * inp.days * inp.meals.length);
   const lines = [
@@ -734,11 +737,10 @@ function mealPrompt(inp, store, slot, done, offset = 0) {
     `Budget: about ${money(per)} per serving. They shop at ${storeLine(inp, store)}.`,
     `Diet: ${inp.prefs.length ? inp.prefs.join(', ') : 'no restrictions'}. Notes from the cook: ${inp.notes || 'none'}.`,
   ];
-  if (done.length) lines.push(`Already planned, so choose a different dish: ${done.map((m) => m.name).join('; ')}.`);
   lines.push(
     '',
     'Reply with only one line of JSON with these keys:',
-    '"name" (the dish name), "about" (one short sentence about it), "minutes" (cooking time as a number), "leftovers" (true only if it reuses an earlier meal, otherwise false).',
+    '"name" (the dish name), "about" (one short sentence about it), "minutes" (cooking time as a number).',
   );
   return lines.join('\n');
 }
@@ -915,7 +917,7 @@ async function makePlan() {
     const meals = await planMeals({
       slots: job.wanted,
       ask: (slot, done, attempt) => {
-        const prompt = mealPrompt(inp, store, slot, done, job.offset);
+        const prompt = mealPrompt(inp, store, slot, job.offset + attempt * 5);
         return gemma.generate(prompt, {
           signal: job.abort.signal,
           temperature: attempt ? 0.4 : 0.7,
