@@ -1,6 +1,8 @@
 // Gemma 4 on the device: download once, keep it in private storage, run it with WebGPU.
 // Uses Google's LiteRT-LM web runtime. Nothing is sent to a server once the model is saved.
 
+import { CONTEXT_TOKENS } from './limits.js';
+
 const LIB_URL = 'https://cdn.jsdelivr.net/npm/@litert-lm/core@0.19.0/+esm';
 const DIR = 'models';
 
@@ -122,7 +124,7 @@ export async function load(onStage) {
     try {
       engine = await lib.Engine.create({
         model: file,
-        mainExecutorSettings: { maxNumTokens: 4096 },
+        mainExecutorSettings: { maxNumTokens: CONTEXT_TOKENS },
       });
     } catch (e) {
       throw codeError('engine', 'Gemma could not start on this phone. Close other apps and Safari tabs, then try again.', e);

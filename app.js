@@ -2,6 +2,7 @@ import * as gemma from './gemma.js';
 import * as stores from './stores.js';
 import { onBoot, beginLoad, endLoad } from './startup-guard.js';
 import { logEvent, readLog, report } from './diagnostics.js';
+import { fitOutput } from './limits.js';
 
 // localStorage itself can throw when site data is blocked; the guard and log handle null.
 const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
@@ -991,10 +992,11 @@ async function makePlan() {
     job.step = 'meals';
     queueProgress();
     const runMeals = async (wanted, already) => {
-      const text = await gemma.generate(planPrompt(inp, store, wanted, already), {
+      const prompt = planPrompt(inp, store, wanted, already);
+      const text = await gemma.generate(prompt, {
         signal: job.abort.signal,
         temperature: 0.7,
-        maxOutputTokens: Math.min(2400, 80 * wanted.length + 200),
+        maxOutputTokens: fitOutput(prompt, Math.min(2400, 80 * wanted.length + 200)),
         onText: (t) => {
           const found = extractObjects(t).map((o) => normMeal(o, inp)).filter(Boolean);
           job.meals = mergeMeals(inp, [already || [], found]);
@@ -1034,10 +1036,11 @@ async function makePlan() {
 }
 
 async function runList(inp, store, meals, cheaper, job) {
-  const text = await gemma.generate(listPrompt(inp, store, meals, cheaper), {
+  const prompt = listPrompt(inp, store, meals, cheaper);
+  const text = await gemma.generate(prompt, {
     signal: job.abort.signal,
     temperature: 0.3,
-    maxOutputTokens: 2200,
+    maxOutputTokens: fitOutput(prompt, 2200),
     onText: (t) => {
       job.items = dedupeItems(extractObjects(t).map((o) => normItem(o, meals.length)).filter(Boolean));
       queueProgress();
@@ -1464,8 +1467,9 @@ async function fillRecipe(rec, idx, body) {
   try {
     await ensureLoaded();
     status.lastChild.textContent = 'Gemma is writing this recipe…';
-    const text = await gemma.generate(recipePrompt(rec, idx), {
-      signal, temperature: 0.5, maxOutputTokens: 900,
+    const prompt = recipePrompt(rec, idx);
+    const text = await gemma.generate(prompt, {
+      signal, temperature: 0.5, maxOutputTokens: fitOutput(prompt, 900),
       onText: (t) => {
         const r = parseRecipe(t);
         if (r.ingredients.length || r.steps.length) body.replaceChildren(...recipeView(r, people, true));
