@@ -828,7 +828,11 @@ function friendlyError(e) {
   if (e.code === 'not_downloaded') return 'Download Gemma 4 first (the card at the top of this page).';
   if (e.code === 'runtime' || e.code === 'engine') return e.message;
   if (e.code === 'parse') return e.message;
-  return 'Gemma stopped unexpectedly. Close other apps, then try again.';
+  const detail = String((e && e.message) || '').slice(0, 160);
+  if (/timed out/i.test(detail)) {
+    return 'Gemma took too long on this phone. Close other apps, try fewer days or meals, then try again.';
+  }
+  return `Gemma stopped unexpectedly${detail ? ` (${detail})` : ''}. Close other apps, then try again.`;
 }
 
 async function ensureLoaded() {
