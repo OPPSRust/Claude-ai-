@@ -39,6 +39,17 @@ export async function removeLegacyModels() {
 
 const TOP_P = 2; // LiteRT-LM SamplerType.TOP_P
 
+// Testing only: localStorage 'cartcook.modelOverride' = {"url","file","size","backend":"cpu"} swaps
+// the model, so the app can be exercised end to end on a machine without a real GPU.
+let backendName = '';
+try {
+  const o = JSON.parse(localStorage.getItem('cartcook.modelOverride') || 'null');
+  if (o && o.url && o.file && o.size) {
+    Object.assign(MODEL, { url: o.url, file: o.file, size: Number(o.size) });
+    backendName = o.backend === 'cpu' ? 'CPU' : '';
+  }
+} catch (e) { /* no override */ }
+
 let lib = null;
 let engine = null;
 let loading = null;
@@ -147,6 +158,7 @@ export async function load(onStage) {
     try {
       engine = await lib.Engine.create({
         model: file,
+        ...(backendName ? { backend: lib.Backend[backendName] } : {}),
         mainExecutorSettings: { maxNumTokens: CONTEXT_TOKENS },
       });
     } catch (e) {
