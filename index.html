@@ -63,7 +63,13 @@
       </div>
 
       <h2 class="group-label">Where you shop</h2>
-      <div class="group glass" id="storeRow"></div>
+      <div class="group glass">
+        <div class="row">
+          <label class="row-label" for="zip">ZIP code</label>
+          <input id="zip" class="zip-input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="e.g. 30306" enterkeyhint="search">
+        </div>
+        <div id="storeRow"></div>
+      </div>
 
       <h2 class="group-label">Tastes</h2>
       <div class="group glass">
@@ -88,7 +94,7 @@
     <!-- STORES -->
     <section class="tab" id="tab-stores" data-tab="stores" aria-labelledby="stores-title" hidden>
       <header class="hero">
-        <p class="kicker">Near you</p>
+        <p class="kicker" id="storesKicker">Near your ZIP code</p>
         <h1 class="large-title" id="stores-title">Stores</h1>
       </header>
       <div id="storesBody"></div>

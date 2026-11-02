@@ -49,6 +49,7 @@ const ICONS = {
   sandwich: '<svg viewBox="0 0 24 24"><path d="M4 10a8 4.5 0 0 1 16 0z"/><path d="M3.5 13h17M5 16h14l-1 3H6z"/></svg>',
   egg: '<svg viewBox="0 0 24 24"><path d="M12 3.5c3.4 0 6 5.3 6 9.4a6 6 0 0 1-12 0c0-4.1 2.6-9.4 6-9.4z"/><circle cx="12" cy="13.5" r="2.4"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M19.5 11a7.5 7.5 0 1 0-2.2 5.5M19.5 4.5V11H13"/></svg>',
+  external: '<svg viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5L11 13M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12"/></svg>',
 };
 
@@ -57,8 +58,8 @@ const EXAMPLE = {
   id: 'example',
   example: true,
   createdAt: null,
-  inputs: { people: 2, days: 3, meals: ['Dinner'], budget: 35, currency: 'USD', storeText: '', area: '', prefs: [], notes: '' },
-  store: null,
+  inputs: { people: 2, days: 3, meals: ['Dinner'], budget: 35, currency: 'USD', zip: '', storeText: '', area: '', prefs: [], notes: '' },
+  store: { id: 'example', name: 'Walmart Supercenter', brand: 'Walmart', kindLabel: 'Supermarket', level: 1, distLabel: '' },
   meals: [
     {
       day: 1, type: 'Dinner', name: 'Sheet-pan chicken thighs with potatoes and green beans',
@@ -90,19 +91,19 @@ const EXAMPLE = {
     { day: 3, type: 'Dinner', name: 'Chicken fried rice', about: "Day 1's chicken and Day 2's rice, fried with eggs, peas and carrots, and soy sauce.", minutes: 20, leftovers: true, recipe: null },
   ],
   list: [
-    { aisle: 'Produce', item: 'Yellow onions', size: '3 lb bag', price: 2.99, uses: [1, 3], got: false },
-    { aisle: 'Produce', item: 'Russet potatoes', size: '5 lb bag', price: 3.49, uses: [1], got: false },
-    { aisle: 'Produce', item: 'Green beans', size: '1 lb', price: 2.29, uses: [1], got: false },
-    { aisle: 'Produce', item: 'Limes', size: '3 count', price: 1.17, uses: [2], got: false },
-    { aisle: 'Produce', item: 'Garlic', size: '1 head', price: 0.59, uses: [1, 3], got: false },
-    { aisle: 'Meat & Seafood', item: 'Bone-in chicken thighs', size: 'about 3 lb pack', price: 5.97, uses: [1, 3], got: false },
-    { aisle: 'Dairy & Eggs', item: 'Large eggs', size: 'dozen', price: 2.99, uses: [3], got: false },
-    { aisle: 'Dairy & Eggs', item: 'Shredded cheddar', size: '8 oz bag', price: 2.29, uses: [2], got: false },
-    { aisle: 'Pantry', item: 'Long-grain white rice', size: '2 lb bag', price: 1.89, uses: [2, 3], got: false },
-    { aisle: 'Pantry', item: 'Black beans', size: '2 × 15 oz cans', price: 1.58, uses: [2], got: false },
-    { aisle: 'Pantry', item: 'Salsa', size: '16 oz jar', price: 2.49, uses: [2], got: false },
-    { aisle: 'Pantry', item: 'Soy sauce', size: '10 oz bottle', price: 1.79, uses: [3], got: false },
-    { aisle: 'Frozen', item: 'Peas and carrots', size: '12 oz bag', price: 1.29, uses: [3], got: false },
+    { aisle: 'Produce', item: 'Yellow onions', brand: 'Marketside', size: '3 lb bag', price: 2.99, uses: [1, 3], got: false },
+    { aisle: 'Produce', item: 'Russet potatoes', brand: 'Marketside', size: '5 lb bag', price: 3.49, uses: [1], got: false },
+    { aisle: 'Produce', item: 'Green beans', brand: '', size: '1 lb', price: 2.29, uses: [1], got: false },
+    { aisle: 'Produce', item: 'Limes', brand: '', size: '3 count', price: 1.17, uses: [2], got: false },
+    { aisle: 'Produce', item: 'Garlic', brand: '', size: '1 head', price: 0.59, uses: [1, 3], got: false },
+    { aisle: 'Meat & Seafood', item: 'Bone-in chicken thighs', brand: '', size: 'about 3 lb pack', price: 5.97, uses: [1, 3], got: false },
+    { aisle: 'Dairy & Eggs', item: 'Large eggs', brand: 'Great Value', size: 'dozen', price: 2.99, uses: [3], got: false },
+    { aisle: 'Dairy & Eggs', item: 'Shredded cheddar', brand: 'Great Value', size: '8 oz bag', price: 2.29, uses: [2], got: false },
+    { aisle: 'Pantry', item: 'Long-grain white rice', brand: 'Great Value', size: '2 lb bag', price: 1.89, uses: [2, 3], got: false },
+    { aisle: 'Pantry', item: 'Black beans', brand: 'Great Value', size: '2 × 15 oz cans', price: 1.58, uses: [2], got: false },
+    { aisle: 'Pantry', item: 'Salsa', brand: 'Great Value', size: '16 oz jar', price: 2.49, uses: [2], got: false },
+    { aisle: 'Pantry', item: 'Soy sauce', brand: 'Great Value', size: '10 oz bottle', price: 1.79, uses: [3], got: false },
+    { aisle: 'Frozen', item: 'Peas and carrots', brand: 'Great Value', size: '12 oz bag', price: 1.29, uses: [3], got: false },
   ],
 };
 
@@ -199,7 +200,7 @@ async function keepAwake(reason, on) {
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-const DEFAULT_INPUTS = { people: 4, days: 5, meals: ['Dinner'], budget: 75, currency: DEFAULT_CURRENCY, storeText: '', area: '', prefs: [], notes: '' };
+const DEFAULT_INPUTS = { people: 4, days: 5, meals: ['Dinner'], budget: 75, currency: DEFAULT_CURRENCY, zip: '', storeText: '', area: '', prefs: [], notes: '' };
 const state = {
   inputs: clone(DEFAULT_INPUTS),
   store: null,
@@ -215,11 +216,12 @@ function loadSaved() {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (!saved) return;
     if (saved.inputs) state.inputs = Object.assign(clone(DEFAULT_INPUTS), saved.inputs);
+    if (!state.inputs.zip && /^\d{5}$/.test(state.inputs.area || '')) state.inputs.zip = state.inputs.area;
     if (saved.store && typeof saved.store.lat === 'number') state.store = saved.store;
     if (saved.radius) state.radius = saved.radius;
     if (saved.record && Array.isArray(saved.record.meals) && Array.isArray(saved.record.list)) state.record = saved.record;
     if (saved.search && Array.isArray(saved.search.items)) {
-      state.search = Object.assign(state.search, { phase: saved.search.items.length ? 'done' : 'idle', items: saved.search.items, origin: saved.search.origin, label: saved.search.label || '' });
+      state.search = Object.assign(state.search, { phase: saved.search.items.length ? 'done' : 'idle', items: saved.search.items, origin: saved.search.origin, label: saved.search.label || '', query: saved.search.query || '' });
     }
   } catch (e) { /* start fresh */ }
 }
@@ -230,7 +232,7 @@ function save() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
         inputs: state.inputs, store: state.store, radius: state.radius, record: state.record,
-        search: { items: state.search.items.slice(0, 40), origin: state.search.origin, label: state.search.label },
+        search: { items: state.search.items.slice(0, 40), origin: state.search.origin, label: state.search.label, query: state.search.query },
       }));
     } catch (e) { /* storage full or blocked */ }
   }, 200);
@@ -250,7 +252,10 @@ function showTab() {
   for (const a of document.querySelectorAll('.tabbar a')) {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   }
-  if (tab === 'stores') renderStores();
+  if (tab === 'stores') {
+    renderStores();
+    if (state.search.phase === 'idle' && state.inputs.zip) searchZip(state.inputs.zip);
+  }
   if (tab === 'meals') renderMeals();
   if (tab === 'list') renderList();
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
@@ -312,6 +317,26 @@ function buildForm() {
   $('#notes').addEventListener('input', (e) => { state.inputs.notes = e.target.value.slice(0, 500); onChange(); });
   $('#makePlan').addEventListener('click', () => makePlan());
 
+  const zip = $('#zip');
+  let zipTimer = 0;
+  zip.addEventListener('input', () => {
+    state.inputs.zip = zip.value.trim().slice(0, 10);
+    save();
+    clearTimeout(zipTimer);
+    if (/^\d{5}$/.test(state.inputs.zip)) zipTimer = setTimeout(() => searchZip(state.inputs.zip), 350);
+  });
+  zip.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    clearTimeout(zipTimer);
+    zip.blur();
+    searchZip(zip.value);
+  });
+  zip.addEventListener('change', () => {
+    const v = zip.value.trim();
+    if (v && v !== state.search.query && !/^\d{1,4}$/.test(v)) searchZip(v);
+  });
+
   $('#weekOf').textContent = 'Week of ' + new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 }
 
@@ -328,6 +353,7 @@ function syncForm() {
   if (document.activeElement !== $('#budget')) $('#budget').value = inp.budget > 0 ? inp.budget : '';
   $('#currency').value = CURRENCIES[inp.currency] ? inp.currency : 'USD';
   if (document.activeElement !== $('#notes')) $('#notes').value = inp.notes || '';
+  if (document.activeElement !== $('#zip')) $('#zip').value = inp.zip || '';
 }
 
 function onChange() {
@@ -358,25 +384,36 @@ function renderPerServing() {
   );
 }
 
+function brandNames(chain, store) {
+  if (!chain) return [];
+  return chain.brands.replace(/\([^)]*\)/g, '').split(',').map((b) => b.trim())
+    .map((b) => (/store's own/i.test(b) ? (store ? store.name : '') : b)).filter(Boolean);
+}
+const LEVEL_LABEL = ['', '$ Budget', '$$', '$$$'];
+
 function renderStoreRow() {
   const box = $('#storeRow');
-  box.replaceChildren();
-  const s = state.store;
-  if (s) {
-    box.append(h('a', { class: 'row row-link', href: '#stores' },
+  const s = state.search;
+  const st = state.store;
+  let content;
+  if (s.phase === 'searching') {
+    content = h('div', { class: 'row' }, h('div', { class: 'row-status' }, h('span', { class: 'spinner' }), `Finding grocery stores near ${s.query}…`));
+  } else if (s.phase === 'error') {
+    content = h('div', { class: 'row' }, h('div', { class: 'row-status err' }, s.message));
+  } else if (st) {
+    const count = s.items.length;
+    content = h('a', { class: 'row row-link', href: '#stores' },
       h('div', { class: 'store-pick' },
-        h('div', { class: 'avatar', style: `--h:${hueOf(s.brand || s.name)}` }, (s.brand || s.name).charAt(0).toUpperCase()),
-        h('div', { class: 't' }, h('b', null, s.name), h('span', null, [s.kindLabel, s.distLabel].filter(Boolean).join(' · '))),
-        icon('chevron', 'chev')),
-    ));
+        h('div', { class: 'avatar', style: `--h:${hueOf(st.brand || st.name)}` }, (st.brand || st.name).charAt(0).toUpperCase()),
+        h('div', { class: 't' },
+          h('b', null, st.name),
+          h('span', null, [st.distLabel, LEVEL_LABEL[st.level || 0], count > 1 ? `${count} stores nearby` : null].filter(Boolean).join(' · '))),
+        icon('chevron', 'chev')));
   } else {
-    box.append(h('a', { class: 'row row-link', href: '#stores' },
-      h('div', { class: 'store-pick' },
-        h('div', { class: 'avatar ghost' }, icon('locate')),
-        h('div', { class: 't' }, h('b', null, state.inputs.storeText || 'Find stores near me'), h('span', null, state.inputs.storeText ? 'Typed by you · tap to search nearby' : 'Uses your location to list grocery stores')),
-        icon('chevron', 'chev')),
-    ));
+    content = h('div', { class: 'row' }, h('div', { class: 'row-status' },
+      state.inputs.storeText ? `Shopping at ${state.inputs.storeText}` : 'Type your ZIP code and Cart & Cook lists the grocery stores around it.'));
   }
+  box.replaceChildren(content);
 }
 
 // ---------------------------------------------------------------------------
@@ -601,13 +638,14 @@ function slotsFor(inp) {
 }
 
 function storeLine(inp, store) {
+  const zip = inp.zip || inp.area;
+  const near = zip ? ` near ZIP code ${zip}` : '';
   if (store) {
     const level = ['', 'a budget store', 'a mid-priced store', 'a pricier store'][store.level || 0];
-    const where = store.city || inp.area;
-    return `${store.name}${level ? ` (${level})` : ''}${where ? ` in ${where}` : ''}`;
+    return `${store.name}${level ? ` (${level})` : ''}${store.city ? ` in ${store.city}` : ''}${near}`;
   }
-  if (inp.storeText) return `${inp.storeText}${inp.area ? ` in ${inp.area}` : ''}`;
-  return `a typical mid-priced supermarket${inp.area ? ` in ${inp.area}` : ''}`;
+  if (inp.storeText) return `${inp.storeText}${near}`;
+  return `a typical mid-priced supermarket${near}`;
 }
 
 function planPrompt(inp, store, wanted, already) {
@@ -642,12 +680,15 @@ function planPrompt(inp, store, wanted, already) {
 
 function listPrompt(inp, store, meals, cheaper) {
   const money = moneyFmt(inp.currency);
+  const chain = stores.chainFor(store);
+  const exBrand = brandNames(chain, store)[0] || 'Store brand';
   const sizes = IMPERIAL ? '"3 lb bag", "dozen", "15 oz can", "1 lb pack"' : '"1 kg bag", "dozen", "400 g can", "500 g pack"';
   const lines = [
     `You are writing the grocery list for this meal plan for ${plural(inp.people, 'person', 'people')}:`,
     ...meals.map((m, i) => `${i + 1}. Day ${m.day} ${m.type}: ${m.name}`),
     '',
     `They shop at ${storeLine(inp, store)}.`,
+    chain ? `${store.name} sells its own brands: ${chain.brands}. Use them for packaged items wherever they fit.` : 'Use the store’s own brand for packaged items where it has one, otherwise a common national brand.',
     `Budget: ${money(inp.budget)} in total (${CURRENCIES[inp.currency].name}).`,
   ];
   if (cheaper) {
@@ -661,13 +702,15 @@ function listPrompt(inp, store, meals, cheaper) {
     `- Use realistic ${new Date().getFullYear()} store-brand prices in ${CURRENCIES[inp.currency].name}, as plain numbers.`,
     `- Keep the total at or under ${money(inp.budget)}.`,
     '- Skip salt, pepper, cooking oil and dried spices.',
+    '- "brand" is the brand to buy at this store. Use "" for loose produce and fresh meat with no brand.',
     '- "uses" lists the numbers of the meals that need the item.',
     '- "aisle" is one of: Produce, Meat & Seafood, Dairy & Eggs, Bakery, Pantry, Frozen.',
     '',
-    'Write one line of JSON per item and nothing else. Each line looks like this:',
+    'Write one line of JSON per item and nothing else. Lines look like these:',
     IMPERIAL
-      ? '{"aisle":"Produce","item":"Yellow onions","size":"3 lb bag","price":2.99,"uses":[1,3]}'
-      : '{"aisle":"Produce","item":"Brown onions","size":"1 kg bag","price":1.20,"uses":[1,3]}',
+      ? '{"aisle":"Produce","item":"Yellow onions","brand":"","size":"3 lb bag","price":2.99,"uses":[1,3]}'
+      : '{"aisle":"Produce","item":"Brown onions","brand":"","size":"1 kg bag","price":1.20,"uses":[1,3]}',
+    `{"aisle":"Dairy & Eggs","item":"Large eggs","brand":${JSON.stringify(exBrand)},"size":"dozen","price":${IMPERIAL ? '2.98' : '3.20'},"uses":[2]}`,
   );
   return lines.join('\n');
 }
@@ -781,7 +824,8 @@ function normItem(o, mealCount) {
   if (!item) return null;
   const rawUses = Array.isArray(o.uses) ? o.uses : String(o.uses || '').split(/[^\d]+/);
   const uses = [...new Set(rawUses.map((n) => Math.round(Number(n))).filter((n) => n >= 1 && n <= mealCount))];
-  return { aisle: normAisle(o.aisle), item, size: str(o.size || o.qty, 40), price: Math.min(num(o.price), 999), uses, got: false };
+  const brand = str(o.brand, 40).replace(/^(none|n\/a|null|no brand|-)$/i, '');
+  return { aisle: normAisle(o.aisle), item, brand, size: str(o.size || o.qty, 40), price: Math.min(num(o.price), 999), uses, got: false };
 }
 function dedupeItems(items) {
   const seen = new Set();
@@ -999,44 +1043,37 @@ function renderProgress() {
 // ---------------------------------------------------------------------------
 let searchCtl = null;
 
-async function searchNearMe() {
-  const s = state.search;
-  if (searchCtl) searchCtl.abort();
-  searchCtl = new AbortController();
-  const signal = searchCtl.signal;
-  s.phase = 'locating'; s.message = '';
-  renderStores();
-  try {
-    const pos = await stores.locate();
-    s.origin = { lat: pos.lat, lon: pos.lon };
-    s.label = 'your location';
-    await runStoreSearch(signal);
-  } catch (e) {
-    if (signal.aborted) return;
-    s.phase = 'error'; s.message = e.message;
-    renderStores();
-  }
+function storeFrom(st) {
+  return {
+    id: st.id, name: st.name, brand: st.brand, kindLabel: st.kindLabel, lat: st.lat, lon: st.lon,
+    city: st.city, postcode: st.postcode, level: st.level, distLabel: stores.formatDistance(st.dist, MILES),
+  };
 }
 
-async function searchPlace(query) {
+async function searchZip(raw) {
+  const zip = String(raw || '').trim().slice(0, 10);
+  if (!zip) return;
   const s = state.search;
-  const q = query.trim();
-  if (!q) return;
   if (searchCtl) searchCtl.abort();
   searchCtl = new AbortController();
   const signal = searchCtl.signal;
-  s.phase = 'searching'; s.message = ''; s.query = q;
+  state.inputs.zip = zip;
+  state.inputs.area = zip;
+  s.phase = 'searching'; s.message = ''; s.query = zip;
+  syncForm();
   renderStores();
+  renderStoreRow();
   try {
-    const place = await stores.geocode(q, REGION, signal);
+    const place = await stores.geocode(zip, REGION, signal);
     s.origin = { lat: place.lat, lon: place.lon };
     s.label = place.label;
-    state.inputs.area = place.postcode || q;
     await runStoreSearch(signal);
   } catch (e) {
     if (signal.aborted) return;
-    s.phase = 'error'; s.message = e.message || 'That search didn’t work. Try again.';
+    s.phase = 'error';
+    s.message = e.message || 'That search didn’t work. Try again.';
     renderStores();
+    renderStoreRow();
   }
 }
 
@@ -1044,24 +1081,28 @@ async function runStoreSearch(signal) {
   const s = state.search;
   s.phase = 'searching';
   renderStores();
+  renderStoreRow();
   const items = await stores.findStores(s.origin, state.radius, signal);
+  if (signal.aborted) return;
   s.items = items;
   s.phase = 'done';
+  if (!items.length) {
+    state.store = null;
+  } else if (!state.store || !items.some((i) => i.id === state.store.id)) {
+    state.store = storeFrom(items[0]);
+    state.inputs.storeText = '';
+    toast(`Shopping at ${items[0].name}, the closest store`);
+  }
   save();
   renderStores();
+  renderStoreRow();
 }
 
 function pickStore(st) {
-  if (state.store && state.store.id === st.id) {
-    state.store = null;
-  } else {
-    state.store = {
-      id: st.id, name: st.name, brand: st.brand, kindLabel: st.kindLabel, lat: st.lat, lon: st.lon,
-      city: st.city, level: st.level, distLabel: stores.formatDistance(st.dist, MILES),
-    };
-    if (st.postcode || st.city) state.inputs.area = st.postcode || st.city;
-    toast(`Shopping at ${st.name}`);
-  }
+  if (state.store && state.store.id === st.id) return;
+  state.store = storeFrom(st);
+  state.inputs.storeText = '';
+  toast(`Shopping at ${st.name}`);
   save();
   renderStores();
   renderStoreRow();
@@ -1070,9 +1111,11 @@ function pickStore(st) {
 function renderStores() {
   const box = $('#storesBody');
   const s = state.search;
-  const busy = s.phase === 'locating' || s.phase === 'searching';
-  const placeInput = h('input', { type: 'search', id: 'placeQuery', placeholder: 'ZIP code or city', autocomplete: 'postal-code', enterkeyhint: 'search', value: s.query || '' });
-  placeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPlace(placeInput.value); } });
+  const busy = s.phase === 'searching';
+  $('#storesKicker').textContent = s.query && s.phase === 'done' ? `Near ${s.query}` : 'Near your ZIP code';
+
+  const zipIn = h('input', { type: 'text', id: 'zipStores', class: 'zip-input', inputmode: 'numeric', autocomplete: 'postal-code', enterkeyhint: 'search', maxlength: '10', placeholder: 'e.g. 30306', value: state.inputs.zip || '' });
+  zipIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); zipIn.blur(); searchZip(zipIn.value); } });
 
   const radius = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Search distance' },
     RADII.map((r) => h('button', {
@@ -1080,49 +1123,49 @@ function renderStores() {
       onclick: () => {
         state.radius = r.m;
         save();
-        if (s.origin && !busy) {
+        if (s.origin) {
           if (searchCtl) searchCtl.abort();
           searchCtl = new AbortController();
           const sig = searchCtl.signal;
-          runStoreSearch(sig).catch((e) => { if (!sig.aborted) { s.phase = 'error'; s.message = e.message; renderStores(); } });
+          runStoreSearch(sig).catch((e) => { if (!sig.aborted) { s.phase = 'error'; s.message = e.message; renderStores(); renderStoreRow(); } });
         } else renderStores();
       },
     }, r.label)));
 
-  const search = h('div', { class: 'glass search-card' },
-    h('button', { type: 'button', class: 'btn primary block', disabled: busy, onclick: searchNearMe }, icon('locate'), s.phase === 'locating' ? 'Finding you…' : 'Find stores near me'),
-    h('div', { class: 'or' }, 'or'),
-    h('div', { class: 'search-row' }, placeInput,
-      h('button', { type: 'button', class: 'btn tinted', disabled: busy, onclick: () => searchPlace(placeInput.value) }, icon('search'), 'Search')),
+  const parts = [h('div', { class: 'glass search-card' },
+    h('div', { class: 'zip-row' },
+      h('label', { class: 'row-label', for: 'zipStores' }, 'ZIP code'),
+      zipIn,
+      h('button', { type: 'button', class: 'btn primary', disabled: busy, onclick: () => searchZip(zipIn.value) }, icon('search'), busy ? 'Finding…' : 'Find stores')),
     h('div', { class: 'radius' }, h('span', { class: 'row-label', style: 'font-size:15px' }, 'Within'), radius),
-  );
+  )];
 
-  const parts = [search];
-  if (s.phase === 'error') {
-    parts.push(h('div', { class: 'alert', role: 'alert' }, s.message));
-  }
+  if (s.phase === 'error') parts.push(h('div', { class: 'alert', role: 'alert' }, s.message));
   if (busy) {
-    parts.push(h('div', { class: 'results-head' }, h('h2', null, s.phase === 'locating' ? 'Finding your location' : 'Looking for grocery stores')),
+    parts.push(h('div', { class: 'results-head' }, h('h2', null, `Looking near ${s.query}`)),
       h('div', { class: 'glass group', 'aria-busy': 'true' }, [1, 2, 3, 4].map(() => h('div', { class: 'skeleton' }))));
   } else if (s.phase === 'done') {
     const radiusLabel = (RADII.find((r) => r.m === state.radius) || RADII[2]).label;
     parts.push(h('div', { class: 'results-head' },
       h('h2', null, s.items.length ? plural(s.items.length, 'grocery store', 'grocery stores') : 'No stores found'),
-      h('span', null, `within ${radiusLabel} of ${s.label || 'you'}`)));
+      h('span', null, `within ${radiusLabel} of ${s.label || s.query}`)));
     if (!s.items.length) {
       parts.push(h('div', { class: 'glass empty' }, icon('basket'), h('p', null, 'No grocery stores are mapped that close. Try a wider distance.')));
     } else {
       parts.push(h('div', { class: 'glass group' }, s.items.map((st) => storeRow(st))));
     }
-  } else if (s.phase === 'idle') {
+  } else {
     parts.push(h('div', { class: 'glass empty', style: 'margin-top:16px' }, icon('pin'),
-      h('p', null, 'Find the grocery stores around you, then pick the one you’ll shop at. Gemma prices your list for that store.')));
+      h('p', null, 'Type your ZIP code to see the grocery stores around it. Pick the one you shop at and Gemma prices your list with that store’s own brands.')));
   }
 
   const typed = h('input', { type: 'text', id: 'storeText', placeholder: 'Type a store name', value: state.inputs.storeText || '', autocomplete: 'off' });
   typed.addEventListener('input', () => {
     state.inputs.storeText = typed.value.slice(0, 60);
-    if (typed.value.trim() && state.store) { state.store = null; renderStoreRowOnly(); }
+    if (typed.value.trim() && state.store) {
+      state.store = null;
+      for (const el of document.querySelectorAll('.store.selected')) el.classList.remove('selected');
+    }
     save();
     renderStoreRow();
   });
@@ -1133,27 +1176,25 @@ function renderStores() {
   );
   box.replaceChildren(...parts);
 }
-function renderStoreRowOnly() {
-  for (const el of document.querySelectorAll('.store.selected')) el.classList.remove('selected');
-}
 
 function storeRow(st) {
   const selected = state.store && state.store.id === st.id;
-  const level = ['', '$ Budget', '$$', '$$$'][st.level || 0];
   const hours = stores.hoursLabel(st.hours);
+  const own = brandNames(stores.chainFor(st), st).slice(0, 3);
   return h('div', { class: 'store' + (selected ? ' selected' : '') },
     h('div', { class: 'avatar', style: `--h:${hueOf(st.brand || st.name)}` }, (st.brand || st.name).charAt(0).toUpperCase()),
     h('div', { class: 'store-info' },
       h('div', { class: 'store-name' }, st.name),
       h('div', { class: 'store-meta' }, `${st.kindLabel} · ${stores.formatDistance(st.dist, MILES)}`),
       st.address ? h('div', { class: 'store-addr' }, st.address) : null,
+      own.length ? h('div', { class: 'store-addr' }, 'Own brands: ' + own.join(', ')) : null,
       h('div', { class: 'store-tags' },
-        level ? h('span', { class: `pill ${st.level === 1 ? 'good' : ''}` }, level) : null,
+        st.level ? h('span', { class: `pill ${st.level === 1 ? 'good' : ''}` }, LEVEL_LABEL[st.level]) : null,
         hours ? h('span', { class: 'pill' }, hours) : null,
         h('a', { href: stores.directionsUrl(st), target: '_blank', rel: 'noopener' }, icon('directions'), 'Directions'))),
     h('button', {
       type: 'button', class: 'pick', 'aria-pressed': selected ? 'true' : 'false',
-      'aria-label': selected ? `Stop shopping at ${st.name}` : `Shop at ${st.name}`,
+      'aria-label': selected ? `Shopping at ${st.name}` : `Shop at ${st.name}`,
       onclick: () => pickStore(st),
     }, icon('check')),
   );
@@ -1370,11 +1411,19 @@ function listText(rec) {
     const items = rec.list.filter((it) => it.aisle === aisle);
     if (!items.length) continue;
     lines.push(aisle.toUpperCase());
-    for (const it of items) lines.push(`${it.got ? '✓' : '○'} ${it.item}${it.size ? ` (${it.size})` : ''} ${money(it.price)}`);
+    for (const it of items) lines.push(`${it.got ? '✓' : '○'} ${it.brand ? it.brand + ' ' : ''}${it.item}${it.size ? ` (${it.size})` : ''} ${money(it.price)}`);
     lines.push('');
   }
   lines.push(`Estimated total: ${money(listTotal(rec))}`);
   return lines.join('\n');
+}
+
+function priceNote(rec) {
+  const link = stores.priceLink(rec.store, 'eggs', rec.inputs.zip);
+  const base = 'Prices are Gemma’s estimates. Tap the link under any item to see the real price';
+  if (link.instacart) return `${base} on the store’s Instacart page (Instacart prices can run a little higher than in the store).`;
+  if (/^Price at /.test(link.label)) return `${base} on ${rec.store.name}’s website.`;
+  return `${base} online.`;
 }
 
 function renderList() {
@@ -1407,9 +1456,14 @@ function renderList() {
     parts.push(h('div', { class: 'glass group' }, items.map((it) => {
       const cb = h('input', { type: 'checkbox', 'aria-label': `${it.item}${it.size ? `, ${it.size}` : ''}` });
       cb.checked = !!it.got;
+      const link = stores.priceLink(rec.store, [it.brand, it.item].filter(Boolean).join(' '), rec.inputs.zip);
+      const sub = [it.brand, it.size].filter(Boolean).join(' · ');
       const row = h('label', { class: 'item' + (it.got ? ' got' : '') },
         cb, h('span', { class: 'check' }, icon('check')),
-        h('span', { class: 'item-text' }, h('b', null, it.item), it.size ? h('span', null, it.size) : null),
+        h('span', { class: 'item-text' },
+          h('b', null, it.item),
+          sub ? h('span', null, sub) : null,
+          h('a', { class: 'price-link', href: link.url, target: '_blank', rel: 'noopener', onclick: (e) => e.stopPropagation() }, link.label, icon('external'))),
         h('span', { class: 'item-price' }, money(it.price)));
       cb.addEventListener('change', () => {
         it.got = cb.checked;
@@ -1442,7 +1496,7 @@ function renderList() {
     renderList();
   });
   parts.push(h('div', { class: 'list-actions' }, shareBtn, untick),
-    h('p', { class: 'fine', style: 'margin-top:14px' }, 'Prices are Gemma’s estimates for your store. Check shelf prices as you shop.'));
+    h('p', { class: 'fine', style: 'margin-top:14px' }, priceNote(rec)));
   box.replaceChildren(...parts);
 }
 

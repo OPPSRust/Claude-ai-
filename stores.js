@@ -1,5 +1,5 @@
-// Finds grocery stores near a point using OpenStreetMap data (Overpass API),
-// and turns a ZIP code or city into a point (Nominatim).
+// Finds grocery stores near a ZIP code using OpenStreetMap data: Nominatim turns the ZIP
+// into a point, Overpass lists the stores around it.
 
 const OVERPASS = [
   'https://overpass-api.de/api/interpreter',
@@ -41,31 +41,74 @@ export function priceLevel(name, brand) {
   return 0;
 }
 
-/** Asks the phone for its location. Rejects with a friendly message. */
-export function locate() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('This browser cannot share your location. Search by ZIP code or city instead.'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-      (err) => {
-        if (err && err.code === 1) {
-          reject(new Error('Location is turned off for Cart & Cook. Allow it in Settings › Privacy & Security › Location Services › Safari Websites, or search by ZIP code below.'));
-        } else {
-          reject(new Error('Your location could not be found just now. Try again, or search by ZIP code below.'));
-        }
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
-    );
-  });
+// Each chain's own brands (what Gemma should put on the list) and where to see its real prices.
+// Store sites were checked to open a search page; chains whose own site has no working search
+// link go through their Instacart store page, which shows local prices once an address is set.
+const SAFEWAY_DOMAINS = { safeway: 'safeway.com', albertsons: 'albertsons.com', vons: 'vons.com', jewel: 'jewelosco.com', acme: 'acmemarkets.com', shaw: 'shaws.com', 'tom thumb': 'tomthumb.com', randalls: 'randalls.com', pavilions: 'pavilions.com', 'star market': 'starmarket.com' };
+const KROGER_DOMAINS = { ralphs: 'ralphs.com', 'fred meyer': 'fredmeyer.com', 'king soopers': 'kingsoopers.com', smith: 'smithsfoodanddrug.com', "fry's": 'frysfood.com', frys: 'frysfood.com', dillons: 'dillons.com', qfc: 'qfc.com', 'food 4 less': 'food4less.com', mariano: 'marianos.com', 'pick': 'picknsave.com', 'city market': 'citymarket.com' };
+const domainIn = (map, name, fallback) => {
+  const n = name.toLowerCase();
+  for (const [key, domain] of Object.entries(map)) if (n.includes(key)) return domain;
+  return fallback;
+};
+const ic = (slug) => (q) => `https://www.instacart.com/store/${slug}/s?k=${q}`;
+
+const CHAINS = [
+  { re: /walmart/i, brands: 'Great Value (pantry, dairy, frozen, canned), Marketside (produce, salads, bakery), Freshness Guaranteed (bakery)', search: (q) => `https://www.walmart.com/search?q=${q}`, site: 'Walmart' },
+  { re: /target/i, brands: 'Good & Gather (most groceries), Favorite Day (bakery, snacks)', search: (q) => `https://www.target.com/s?searchTerm=${q}`, site: 'Target' },
+  { re: /costco/i, brands: 'Kirkland Signature', search: (q) => `https://www.costco.com/s?keyword=${q}`, site: 'Costco' },
+  { re: /sam'?s club/i, brands: "Member's Mark", search: (q) => `https://www.samsclub.com/search?q=${q}`, site: "Sam's Club" },
+  { re: /\baldi\b/i, brands: "Goldhen (eggs), Friendly Farms (milk, yogurt), Happy Farms (cheese), Countryside Creamery (butter), Kirkwood (chicken), Never Any! (meat), Simply Nature (organic), Specially Selected (premium), Baker's Corner (baking), Millville (cereal), Season's Choice (frozen vegetables), Reggano (pasta, sauce), Dakota's Pride (canned beans), Casa Mamita (Mexican), Carlini (oil), Stonemill (spices), L'oven Fresh (bread)", search: ic('aldi'), site: 'Instacart' },
+  { re: /\blidl\b/i, brands: 'Lidl, Preferred Selection (premium)' },
+  { re: /trader joe/i, brands: "Trader Joe's", search: (q) => `https://www.traderjoes.com/home/search?q=${q}&section=products`, site: "Trader Joe's" },
+  { re: /whole foods/i, brands: '365 by Whole Foods Market', search: (q) => `https://www.wholefoodsmarket.com/search?text=${q}`, site: 'Whole Foods' },
+  { re: /publix/i, brands: 'Publix, GreenWise (organic)', search: (q) => `https://www.publix.com/search?searchTerm=${q}`, site: 'Publix' },
+  { re: /\bh-?e-?b\b/i, brands: 'H-E-B, Hill Country Fare (value)', search: (q) => `https://www.heb.com/search?q=${q}`, site: 'H-E-B' },
+  { re: /hy-?vee/i, brands: 'Hy-Vee', search: (q) => `https://www.hy-vee.com/aisles-online/search?search=${q}`, site: 'Hy-Vee' },
+  { re: /sprouts/i, brands: 'Sprouts', search: ic('sprouts'), site: 'Instacart' },
+  { re: /wegmans/i, brands: 'Wegmans', search: ic('wegmans'), site: 'Instacart' },
+  { re: /meijer/i, brands: 'Meijer, True Goodness (organic)', search: ic('meijer'), site: 'Instacart' },
+  { re: /food lion/i, brands: "Food Lion, Nature's Promise (organic)", search: ic('food-lion'), site: 'Instacart' },
+  { re: /harris teeter/i, brands: 'Harris Teeter' },
+  { re: /giant eagle|market district/i, brands: 'Giant Eagle, Market District (premium)' },
+  { re: /stop ?& ?shop|\bgiant\b|hannaford/i, brands: "the store's own name brand, Nature's Promise (organic)" },
+  { re: /shoprite/i, brands: 'Bowl & Basket, Wholesome Pantry (organic)' },
+  { re: /ingles/i, brands: 'Laura Lynn' },
+  { re: /winco/i, brands: 'WinCo Foods' },
+  { re: /dollar general/i, brands: 'Clover Valley' },
+  { re: /smart ?& ?final/i, brands: 'First Street' },
+  { re: /safeway|albertsons|vons|jewel|acme|shaw'?s|tom thumb|randalls|pavilions|star market/i, brands: 'Signature Select, Signature Farms (meat, produce), Lucerne (dairy), O Organics (organic)', search: (q, name) => `https://www.${domainIn(SAFEWAY_DOMAINS, name, 'safeway.com')}/shop/search-results.html?q=${q}`, site: 'store' },
+  { re: /kroger|ralphs|fred meyer|king soopers|smith'?s|fry'?s|dillons|qfc|food 4 less|mariano|pick ?'?n ?save|city market/i, brands: 'Kroger, Simple Truth (organic), Private Selection (premium), Heritage Farm (chicken)', search: (q, name) => `https://www.${domainIn(KROGER_DOMAINS, name, 'kroger.com')}/search?query=${q}`, site: 'store' },
+];
+
+/** The chain a store belongs to, with its own brands, or null if unknown. */
+export function chainFor(store) {
+  if (!store) return null;
+  const text = `${store.brand || ''} ${store.name || ''}`;
+  return CHAINS.find((c) => c.re.test(text)) || null;
+}
+
+/** Where to see the real price of an item: the store's site, its Instacart page, or a web search. */
+export function priceLink(store, query, zip) {
+  const q = encodeURIComponent(query.trim());
+  const chain = chainFor(store);
+  if (chain && chain.search) {
+    const site = chain.site === 'store' ? store.name : chain.site;
+    return { url: chain.search(q, store.name || ''), label: chain.site === 'Instacart' ? 'Price on Instacart' : `Price at ${site}`, instacart: chain.site === 'Instacart' };
+  }
+  const where = store ? store.name : zip ? `near ${zip}` : '';
+  return { url: `https://www.google.com/search?q=${encodeURIComponent(`${query} price ${where}`.trim())}`, label: 'Look up price', instacart: false };
 }
 
 /** Turns a ZIP code, postcode or city into a point. */
 export async function geocode(query, countryCode, signal) {
-  const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&q=' + encodeURIComponent(query);
-  const urls = countryCode ? [base + '&countrycodes=' + countryCode.toLowerCase(), base] : [base];
+  const q = query.trim();
+  const usZip = /^\d{5}(-\d{4})?$/.test(q);
+  const base = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1';
+  const urls = [];
+  if (usZip) urls.push(`${base}&postalcode=${q.slice(0, 5)}&countrycodes=us`);
+  else if (countryCode) urls.push(`${base}&q=${encodeURIComponent(q)}&countrycodes=${countryCode.toLowerCase()}`);
+  urls.push(`${base}&q=${encodeURIComponent(q)}${usZip ? '&countrycodes=us' : ''}`);
   for (const url of urls) {
     const res = await fetch(url, { signal, headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error('The place search is busy. Try again in a moment.');
@@ -77,7 +120,7 @@ export async function geocode(query, countryCode, signal) {
       return { lat: Number(hit.lat), lon: Number(hit.lon), label, postcode: a.postcode || '' };
     }
   }
-  throw new Error(`No place called “${query}” was found. Check the spelling or try a nearby city.`);
+  throw new Error(`No place with ZIP code “${query}” was found. Check the number and try again.`);
 }
 
 /** Grocery stores within radiusM meters of a point, nearest first. */

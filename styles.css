@@ -297,7 +297,14 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 .bar.bad > span { background: var(--bad); }
 .progress-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-2); font-size: 13.5px; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
 
+input.zip-input { width: 8.5rem; flex: none; text-align: right; font-family: var(--font-num); font-weight: 700; font-size: 19px; letter-spacing: 0.04em; }
+.zip-input::placeholder { font-weight: 500; letter-spacing: 0; }
+
 /* ---------- Store row on Plan ---------- */
+#storeRow .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px; background: var(--hair); }
+.row-status { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 14.5px; }
+.row-status .spinner { width: 18px; height: 18px; border-width: 2px; flex: none; }
+.row-status.err { color: var(--bad); }
 .store-pick { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .store-pick .t { display: flex; flex-direction: column; min-width: 0; }
 .store-pick .t b { font-weight: 620; font-size: 16.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -339,6 +346,14 @@ input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px
 .or { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--hair); }
 .search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.zip-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.zip-row input.zip-input { width: 100%; }
+.price-link {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin-top: 4px; padding: 2px 0;
+  font-size: 13px; font-weight: 650; color: var(--accent-text); text-decoration: none;
+}
+.price-link .i { width: 13px; height: 13px; }
+.item.got .price-link { opacity: 0.55; }
 .radius { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .radius .segmented { grid-template-columns: repeat(4, minmax(0, 1fr)); flex: 1; max-width: 16rem; }
 .radius .segmented button { font-size: 14px; height: 34px; }
