@@ -11,7 +11,7 @@ const browser = await chromium.launch();
 try {
   const page = await browser.newPage();
   await page.goto(server.url + '#plan');
-  await page.waitForFunction(() => window.__cartcook && window.__cartcook.mealPrompt);
+  await page.waitForFunction(() => window.__cartcook && window.__cartcook.mealPrompt, null, { timeout: 5000 });
   const r = await page.evaluate(() => {
     const cc = window.__cartcook;
     const inp = { people: 2, days: 5, meals: ['Dinner'], budget: 50, currency: 'USD', zip: '30306', prefs: [], notes: '' };
@@ -21,7 +21,7 @@ try {
     return {
       dinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(inp, store, { day: d, type: 'Dinner' }, [], 0)),
       vegDinners: [1, 2, 3, 4, 5].map((d) => cc.mealPrompt(veg, store, { day: d, type: 'Dinner' }, [], 0)),
-      list: cc.mealListPrompt(inp, store, meal, false),
+      list: cc.ingredientsPrompt(inp, meal, false),
       recipe: cc.recipePrompt({ inputs: inp, store, meals: [meal], list: [{ item: 'Ground beef', uses: [1] }] }, 0),
     };
   });
@@ -33,7 +33,7 @@ try {
   if (ideas.some((x) => !x) || new Set(ideas).size !== 5) throw new Error('each day needs its own main ingredient: ' + JSON.stringify(ideas));
   const vegIdeas = r.vegDinners.map((t) => (t.match(/Build it around ([^.]+)\./) || [])[1]).join(' ');
   if (/chicken|beef|pork|turkey|fish|sausage/i.test(vegIdeas)) throw new Error('vegetarian plan got a meat idea: ' + vegIdeas);
-  if (!/Chili/.test(r.list) || !/"brand"/.test(r.list)) throw new Error('list prompt must name the meal and ask for brands');
+  if (!/Chili/.test(r.list) || !/comma-separated/.test(r.list)) throw new Error('ingredients prompt must name the meal and ask for a comma-separated list');
   console.log('PASS');
 } catch (e) {
   console.log('FAIL ' + String(e.message).split('\n')[0]);

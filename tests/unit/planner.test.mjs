@@ -67,3 +67,9 @@ test('a model that always repeats itself still gives every day a meal', async ()
   assert.equal(meals[0].name, 'Same dish');
   assert.ok(meals.slice(1).every((m) => m.leftovers));
 });
+
+test('the first meal cannot be a leftovers meal', async () => {
+  const meals = await planMeals({ slots: dinners(2), ask: async (slot) => `{"name":"Meal ${slot.day}","leftovers":true}` });
+  assert.equal(meals[0].leftovers, false);
+  assert.equal(meals[1].leftovers, true);
+});

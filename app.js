@@ -4,6 +4,7 @@ import { onBoot, beginLoad, endLoad } from './startup-guard.js';
 import { logEvent, readLog, report } from './diagnostics.js';
 import { fitOutput } from './limits.js';
 import { extractObjects, planMeals, planList } from './planner.js';
+import { parseIngredients, priceItem, brandFor } from './groceries.js';
 
 // localStorage itself can throw when site data is blocked; the guard and log handle null.
 const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
@@ -742,22 +743,14 @@ function mealPrompt(inp, store, slot, done, offset = 0) {
   return lines.join('\n');
 }
 
-/** Prompt for the groceries one meal needs. No example items, because a small model copies examples. */
-function mealListPrompt(inp, store, meal, cheaper) {
-  const chain = stores.chainFor(store);
-  const lines = [
-    `List the groceries to buy for this meal for ${plural(inp.people, 'person', 'people')}: ${meal.name}. ${meal.about || ''}`.trim(),
-    `They shop at ${storeLine(inp, store)}.`,
-    chain ? `${store.name} sells its own brands: ${chain.brands}. Use them for packaged items where they fit.` : 'Use the store’s own brand for packaged items where it has one.',
-  ];
-  if (cheaper) lines.push('Keep it as cheap as possible: smaller sizes, store brands and cheap proteins.');
-  lines.push(
-    'Skip salt, pepper, cooking oil and dried spices.',
-    '',
-    'Reply with only JSON, one line per grocery item, with these keys:',
-    `"item" (the ingredient), "brand" (the brand to buy, or "" for fresh produce and meat), "size" (a package size sold in stores, in ${IMPERIAL ? 'lb, oz or count' : 'kg, g or count'}), "price" (a realistic ${new Date().getFullYear()} price in ${CURRENCIES[inp.currency].name}, as a number), "aisle" (one of Produce, Meat & Seafood, Dairy & Eggs, Bakery, Pantry, Frozen).`,
-  );
-  return lines.join('\n');
+/** Prompt for one meal's ingredients. Prices come from the price book, not the model. */
+function ingredientsPrompt(inp, meal, cheaper) {
+  return [
+    `List the grocery ingredients needed to cook ${meal.name} for ${plural(inp.people, 'person', 'people')}. ${meal.about || ''}`.trim(),
+    `Diet: ${inp.prefs.length ? inp.prefs.join(', ') : 'no restrictions'}.`,
+    cheaper ? 'Keep it as cheap as possible: choose cheap ingredients like beans, rice, eggs, pasta and chicken thighs.' : '',
+    'Reply with only a comma-separated list of ingredient names, without amounts. Skip salt, pepper, oil, water and spices.',
+  ].filter(Boolean).join('\n');
 }
 
 function recipePrompt(rec, idx) {
@@ -955,13 +948,23 @@ async function makePlan() {
 }
 
 async function runList(inp, store, meals, cheaper, job) {
+  const brands = (stores.chainFor(store) || {}).brands || '';
+  const extra = Math.max(1, Math.ceil(inp.people / 4)); // bigger households need more meat
   return planList({
     meals,
     ask: (meal) => {
-      const prompt = mealListPrompt(inp, store, meal, !!cheaper);
-      return gemma.generate(prompt, { signal: job.abort.signal, temperature: 0.3, maxOutputTokens: fitOutput(prompt, 500) });
+      const prompt = ingredientsPrompt(inp, meal, !!cheaper);
+      return gemma.generate(prompt, { signal: job.abort.signal, temperature: 0.3, maxOutputTokens: fitOutput(prompt, 160) });
     },
-    toItem: (o) => normItem(o, meals.length),
+    toItems: (answer) => parseIngredients(answer).map((name) => {
+      const e = priceItem(name);
+      const n = e.aisle === 'Meat & Seafood' ? extra : 1;
+      return {
+        aisle: e.aisle, item: e.item, brand: brandFor(brands, e),
+        size: n > 1 ? `${n} × ${e.size}` : e.size,
+        price: Math.round(e.price * n * 100) / 100, got: false,
+      };
+    }),
     onItems: (items) => { job.items = items; queueProgress(); },
   });
 }
@@ -1789,4 +1792,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 }
 
 // For automated checks only.
-window.__cartcook = { state, extractObjects, parseRecipe, normItem, mealCosts, mealPrompt, mealListPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };
+window.__cartcook = { state, extractObjects, parseRecipe, normItem, mealCosts, mealPrompt, ingredientsPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };
