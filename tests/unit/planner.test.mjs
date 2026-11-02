@@ -52,3 +52,18 @@ test('passes earlier meals to the model and reports each meal', async () => {
   assert.deepEqual(seen, [[], ['Meal 1'], ['Meal 1', 'Meal 2']]);
   assert.deepEqual(reported, [1, 2, 3]);
 });
+
+test('rejects a meal that repeats an earlier one and asks again', async () => {
+  const meals = await planMeals({
+    slots: dinners(3),
+    ask: async (slot, done, attempt) => (slot.day === 2 && attempt === 0 ? line('Meal 1') : line(`Meal ${slot.day}`)),
+  });
+  assert.deepEqual(meals.map((m) => m.name), ['Meal 1', 'Meal 2', 'Meal 3']);
+});
+
+test('a model that always repeats itself still gives every day a meal', async () => {
+  const meals = await planMeals({ slots: dinners(3), ask: async () => line('Same dish') });
+  assert.equal(meals.length, 3);
+  assert.equal(meals[0].name, 'Same dish');
+  assert.ok(meals.slice(1).every((m) => m.leftovers));
+});

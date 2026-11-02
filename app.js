@@ -3,7 +3,7 @@ import * as stores from './stores.js';
 import { onBoot, beginLoad, endLoad } from './startup-guard.js';
 import { logEvent, readLog, report } from './diagnostics.js';
 import { fitOutput } from './limits.js';
-import { extractObjects, planMeals } from './planner.js';
+import { extractObjects, planMeals, planList } from './planner.js';
 
 // localStorage itself can throw when site data is blocked; the guard and log handle null.
 const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
@@ -705,69 +705,57 @@ function storeLine(inp, store) {
   return `a typical mid-priced supermarket${near}`;
 }
 
-function planPrompt(inp, store, wanted, already) {
+// Main ingredients to build meals around. A small model asked for "a dinner" keeps giving
+// the same dish, so each day gets its own starting point.
+const IDEAS = {
+  Breakfast: ['eggs', 'oatmeal', 'pancakes', 'yogurt and fruit', 'toast', 'breakfast burritos', 'muffins'],
+  Lunch: ['sandwiches', 'soup', 'wraps', 'a salad', 'quesadillas', 'rice bowls', 'pasta salad'],
+  Dinner: ['chicken', 'black beans', 'pasta', 'ground beef', 'eggs', 'lentils', 'pork', 'potatoes', 'ground turkey', 'rice', 'fish', 'chickpeas'],
+};
+const MEAT = /chicken|beef|pork|turkey|fish|sausage/i;
+
+function ideaFor(inp, slot, offset = 0) {
+  let list = IDEAS[slot.type] || IDEAS.Dinner;
+  if (inp.prefs.includes('Vegetarian') || inp.prefs.includes('Vegan')) list = list.filter((x) => !MEAT.test(x));
+  if (inp.prefs.includes('Vegan')) list = list.filter((x) => !/egg|yogurt|cheese/i.test(x));
+  if (inp.prefs.includes('No pork')) list = list.filter((x) => !/pork|sausage/i.test(x));
+  return list[(slot.day - 1 + offset) % list.length];
+}
+
+/** Prompt for one meal. No example dish, because a small model copies examples. */
+function mealPrompt(inp, store, slot, done, offset = 0) {
   const money = moneyFmt(inp.currency);
   const per = inp.budget / (inp.people * inp.days * inp.meals.length);
   const lines = [
-    'You are a home cook who plans tasty, budget-friendly meals.',
-    '',
-    `Plan meals for ${plural(inp.people, 'person', 'people')}.`,
-    `Grocery budget for the whole plan: ${money(inp.budget)} (${CURRENCIES[inp.currency].name}). That is about ${money(per)} per serving, so choose dishes that fit.`,
-    `They shop at ${storeLine(inp, store)}.`,
-    `Diet: ${inp.prefs.length ? inp.prefs.join(', ') : 'no restrictions'}.`,
-    `Notes from the cook: ${inp.notes || 'none'}.`,
-    '',
-    'Rules:',
-    `- Every meal feeds all ${inp.people}.`,
-    '- Reuse ingredients across meals so nothing goes to waste.',
-    '- When it saves money, make a meal from an earlier meal\'s leftovers and set "leftovers" to true.',
-    '- Dinners are all different. Breakfasts and lunches can be simple and can repeat.',
+    'You are a home cook planning cheap, tasty meals.',
+    `Suggest one ${slot.type.toLowerCase()} for ${plural(inp.people, 'person', 'people')} for day ${slot.day} of a ${inp.days}-day plan.`,
+    `Build it around ${ideaFor(inp, slot, offset)}.`,
+    `Budget: about ${money(per)} per serving. They shop at ${storeLine(inp, store)}.`,
+    `Diet: ${inp.prefs.length ? inp.prefs.join(', ') : 'no restrictions'}. Notes from the cook: ${inp.notes || 'none'}.`,
   ];
-  if (already && already.length) {
-    lines.push('', 'Already planned (do not repeat these lines):', ...already.map((m) => `- Day ${m.day} ${m.type}: ${m.name}`));
-  }
+  if (done.length) lines.push(`Already planned, so choose a different dish: ${done.map((m) => m.name).join('; ')}.`);
   lines.push(
     '',
-    `Write exactly ${plural(wanted.length, 'line', 'lines')} of JSON, one line per meal, in this order: ${wanted.map((s) => `Day ${s.day} ${s.type}`).join(', ')}.`,
-    'Write nothing else. Each line looks like this:',
-    '{"day":1,"meal":"Dinner","name":"Sheet-pan chicken and potatoes","about":"Crispy thighs roasted with potatoes and onions.","minutes":40,"leftovers":false}',
+    'Reply with only one line of JSON with these keys:',
+    '"name" (the dish name), "about" (one short sentence about it), "minutes" (cooking time as a number), "leftovers" (true only if it reuses an earlier meal, otherwise false).',
   );
   return lines.join('\n');
 }
 
-function listPrompt(inp, store, meals, cheaper) {
-  const money = moneyFmt(inp.currency);
+/** Prompt for the groceries one meal needs. No example items, because a small model copies examples. */
+function mealListPrompt(inp, store, meal, cheaper) {
   const chain = stores.chainFor(store);
-  const exBrand = brandNames(chain, store)[0] || 'Store brand';
-  const sizes = IMPERIAL ? '"3 lb bag", "dozen", "15 oz can", "1 lb pack"' : '"1 kg bag", "dozen", "400 g can", "500 g pack"';
   const lines = [
-    `You are writing the grocery list for this meal plan for ${plural(inp.people, 'person', 'people')}:`,
-    ...meals.map((m, i) => `${i + 1}. Day ${m.day} ${m.type}: ${m.name}`),
-    '',
+    `List the groceries to buy for this meal for ${plural(inp.people, 'person', 'people')}: ${meal.name}. ${meal.about || ''}`.trim(),
     `They shop at ${storeLine(inp, store)}.`,
-    chain ? `${store.name} sells its own brands: ${chain.brands}. Use them for packaged items wherever they fit.` : 'Use the store’s own brand for packaged items where it has one, otherwise a common national brand.',
-    `Budget: ${money(inp.budget)} in total (${CURRENCIES[inp.currency].name}).`,
+    chain ? `${store.name} sells its own brands: ${chain.brands}. Use them for packaged items where they fit.` : 'Use the store’s own brand for packaged items where it has one.',
   ];
-  if (cheaper) {
-    lines.push(`The last list came to ${money(cheaper)}, which is ${money(cheaper - inp.budget)} over budget. Make this list cheaper: smaller sizes, store brands, and cheaper proteins such as eggs, beans, lentils, chicken thighs or ground turkey.`);
-  }
+  if (cheaper) lines.push('Keep it as cheap as possible: smaller sizes, store brands and cheap proteins.');
   lines.push(
+    'Skip salt, pepper, cooking oil and dried spices.',
     '',
-    'Rules:',
-    '- One line per item. Combine what several meals share into one item.',
-    `- Use package sizes stores sell, like ${sizes}.`,
-    `- Use realistic ${new Date().getFullYear()} store-brand prices in ${CURRENCIES[inp.currency].name}, as plain numbers.`,
-    `- Keep the total at or under ${money(inp.budget)}.`,
-    '- Skip salt, pepper, cooking oil and dried spices.',
-    '- "brand" is the brand to buy at this store. Use "" for loose produce and fresh meat with no brand.',
-    '- "uses" lists the numbers of the meals that need the item.',
-    '- "aisle" is one of: Produce, Meat & Seafood, Dairy & Eggs, Bakery, Pantry, Frozen.',
-    '',
-    'Write one line of JSON per item and nothing else. Lines look like these:',
-    IMPERIAL
-      ? '{"aisle":"Produce","item":"Yellow onions","brand":"","size":"3 lb bag","price":2.99,"uses":[1,3]}'
-      : '{"aisle":"Produce","item":"Brown onions","brand":"","size":"1 kg bag","price":1.20,"uses":[1,3]}',
-    `{"aisle":"Dairy & Eggs","item":"Large eggs","brand":${JSON.stringify(exBrand)},"size":"dozen","price":${IMPERIAL ? '2.98' : '3.20'},"uses":[2]}`,
+    'Reply with only JSON, one line per grocery item, with these keys:',
+    `"item" (the ingredient), "brand" (the brand to buy, or "" for fresh produce and meat), "size" (a package size sold in stores, in ${IMPERIAL ? 'lb, oz or count' : 'kg, g or count'}), "price" (a realistic ${new Date().getFullYear()} price in ${CURRENCIES[inp.currency].name}, as a number), "aisle" (one of Produce, Meat & Seafood, Dairy & Eggs, Bakery, Pantry, Frozen).`,
   );
   return lines.join('\n');
 }
@@ -791,15 +779,13 @@ function recipePrompt(rec, idx) {
   lines.push(
     `Give exact amounts for ${inp.people}. Give oven and doneness temperatures in °F and °C.`,
     '',
-    'Use exactly this layout and nothing else:',
+    'Use exactly this layout, replacing the parts in [brackets], and nothing else:',
     'INGREDIENTS',
-    IMPERIAL ? '- 1 lb | ground turkey' : '- 500 g | minced turkey',
-    '- 2 cloves | garlic, minced',
+    '- [amount] | [ingredient]',
     'STEPS',
-    '1. First step.',
-    '2. Next step.',
+    '1. [step]',
     'TIP',
-    'One sentence about leftovers or saving money.',
+    '[one sentence about leftovers or saving money]',
   );
   return lines.join('\n');
 }
@@ -837,7 +823,7 @@ function parseRecipe(text) {
   let section = null;
   for (const raw of text.split('\n')) {
     let line = raw.trim().replace(/^#+\s*/, '').replace(/\*\*/g, '');
-    if (!line) continue;
+    if (!line || /\[(amount|ingredient|step|one sentence)[^\]]*\]/i.test(line)) continue;
     const head = line.replace(/[:*_]/g, '').trim().toUpperCase();
     if (head === 'INGREDIENTS') { section = 'i'; continue; }
     if (['STEPS', 'INSTRUCTIONS', 'METHOD', 'DIRECTIONS'].includes(head)) { section = 's'; continue; }
@@ -920,7 +906,7 @@ async function makePlan() {
   }
 
   const store = state.store ? clone(state.store) : null;
-  const job = state.job = { kind: 'plan', step: 'wake', abort: new AbortController(), meals: [], items: [], wanted: slotsFor(inp) };
+  const job = state.job = { kind: 'plan', step: 'wake', abort: new AbortController(), meals: [], items: [], wanted: slotsFor(inp), offset: Math.floor(Math.random() * 12) };
   updateCta();
   renderProgress();
   keepAwake('job', true);
@@ -936,7 +922,7 @@ async function makePlan() {
     const meals = await planMeals({
       slots: job.wanted,
       ask: (slot, done, attempt) => {
-        const prompt = planPrompt(inp, store, [slot], done);
+        const prompt = mealPrompt(inp, store, slot, done, job.offset);
         return gemma.generate(prompt, {
           signal: job.abort.signal,
           temperature: attempt ? 0.4 : 0.7,
@@ -969,17 +955,15 @@ async function makePlan() {
 }
 
 async function runList(inp, store, meals, cheaper, job) {
-  const prompt = listPrompt(inp, store, meals, cheaper);
-  const text = await gemma.generate(prompt, {
-    signal: job.abort.signal,
-    temperature: 0.3,
-    maxOutputTokens: fitOutput(prompt, 2200),
-    onText: (t) => {
-      job.items = dedupeItems(extractObjects(t).map((o) => normItem(o, meals.length)).filter(Boolean));
-      queueProgress();
+  return planList({
+    meals,
+    ask: (meal) => {
+      const prompt = mealListPrompt(inp, store, meal, !!cheaper);
+      return gemma.generate(prompt, { signal: job.abort.signal, temperature: 0.3, maxOutputTokens: fitOutput(prompt, 500) });
     },
+    toItem: (o) => normItem(o, meals.length),
+    onItems: (items) => { job.items = items; queueProgress(); },
   });
-  return dedupeItems(extractObjects(text).map((o) => normItem(o, meals.length)).filter(Boolean));
 }
 
 async function makeCheaper() {
@@ -1805,4 +1789,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 }
 
 // For automated checks only.
-window.__cartcook = { state, extractObjects, parseRecipe, normItem, mealCosts, planPrompt, listPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };
+window.__cartcook = { state, extractObjects, parseRecipe, normItem, mealCosts, mealPrompt, mealListPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };

@@ -84,7 +84,9 @@ export async function planMeals({ slots, ask, onMeal = () => {}, attempts = 3 })
   for (const slot of slots) {
     let meal = null;
     for (let attempt = 0; attempt < attempts && !meal; attempt++) {
-      meal = mealFromText(await ask(slot, done.slice(), attempt), slot);
+      const candidate = mealFromText(await ask(slot, done.slice(), attempt), slot);
+      // A small model often repeats itself; a repeat counts as no answer.
+      if (candidate && !done.some((m) => m.name.toLowerCase() === candidate.name.toLowerCase())) meal = candidate;
     }
     if (!meal) meal = leftoverMeal(slot, done);
     if (!meal) {
@@ -94,4 +96,28 @@ export async function planMeals({ slots, ask, onMeal = () => {}, attempts = 3 })
     onMeal(done.slice());
   }
   return done;
+}
+
+/**
+ * Builds the shopping list one meal at a time. ask(meal, n) -> Promise<string> returns the
+ * model's grocery lines for meal number n (1-based); toItem(obj) turns one JSON object into an
+ * item or null. Items with the same name are merged, and `uses` lists the meals that need them.
+ */
+export async function planList({ meals, ask, toItem, onItems = () => {} }) {
+  const items = [];
+  for (let i = 0; i < meals.length; i++) {
+    const n = i + 1;
+    for (const o of extractObjects(await ask(meals[i], n))) {
+      const item = toItem(o);
+      if (!item) continue;
+      const same = items.find((x) => x.item.toLowerCase() === item.item.toLowerCase());
+      if (same) {
+        if (!same.uses.includes(n)) same.uses.push(n);
+      } else {
+        items.push({ ...item, uses: [n] });
+      }
+    }
+    onItems(items.slice());
+  }
+  return items;
 }
