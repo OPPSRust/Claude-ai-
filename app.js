@@ -3,6 +3,7 @@ import * as stores from './stores.js';
 import { onBoot, beginLoad, endLoad } from './startup-guard.js';
 import { logEvent, readLog, report } from './diagnostics.js';
 import { fitOutput } from './limits.js';
+import { extractObjects, planMeals } from './planner.js';
 
 // localStorage itself can throw when site data is blocked; the guard and log handle null.
 const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
@@ -727,7 +728,7 @@ function planPrompt(inp, store, wanted, already) {
   }
   lines.push(
     '',
-    `Write exactly ${wanted.length} lines of JSON, one line per meal, in this order: ${wanted.map((s) => `Day ${s.day} ${s.type}`).join(', ')}.`,
+    `Write exactly ${plural(wanted.length, 'line', 'lines')} of JSON, one line per meal, in this order: ${wanted.map((s) => `Day ${s.day} ${s.type}`).join(', ')}.`,
     'Write nothing else. Each line looks like this:',
     '{"day":1,"meal":"Dinner","name":"Sheet-pan chicken and potatoes","about":"Crispy thighs roasted with potatoes and onions.","minutes":40,"leftovers":false}',
   );
@@ -803,68 +804,6 @@ function recipePrompt(rec, idx) {
   return lines.join('\n');
 }
 
-/** Pulls every complete top-level {...} object out of streamed text. */
-function extractObjects(text) {
-  const out = [];
-  let depth = 0;
-  let start = -1;
-  let inStr = false;
-  let esc = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inStr) {
-      if (esc) esc = false;
-      else if (c === '\\') esc = true;
-      else if (c === '"') inStr = false;
-      else if (c === '\n') { inStr = false; depth = 0; start = -1; }
-      continue;
-    }
-    if (c === '"') { if (depth > 0) inStr = true; continue; }
-    if (c === '{') { if (depth === 0) start = i; depth++; }
-    else if (c === '}' && depth > 0) {
-      depth--;
-      if (depth === 0 && start >= 0) {
-        const obj = tryParse(text.slice(start, i + 1));
-        if (obj && typeof obj === 'object' && !Array.isArray(obj)) out.push(obj);
-        start = -1;
-      }
-    }
-  }
-  return out;
-}
-function tryParse(s) {
-  try { return JSON.parse(s); } catch (e) { /* try a light repair */ }
-  try { return JSON.parse(s.replace(/[“”]/g, '"').replace(/,\s*([}\]])/g, '$1')); } catch (e) { return null; }
-}
-
-function mealType(v) {
-  const s = String(v || '').toLowerCase();
-  if (s.startsWith('break')) return 'Breakfast';
-  if (s.startsWith('lunch')) return 'Lunch';
-  if (s.startsWith('din') || s.startsWith('sup')) return 'Dinner';
-  return null;
-}
-function normMeal(o, inp) {
-  const day = Math.round(num(o.day));
-  const type = mealType(o.meal || o.type);
-  const name = str(o.name || o.dish, 120);
-  if (!day || day > inp.days || !type || !inp.meals.includes(type) || !name) return null;
-  return {
-    day, type, name,
-    about: str(o.about || o.description, 220),
-    minutes: clampInt(num(o.minutes), 0, 600, 0),
-    leftovers: o.leftovers === true || o.leftovers === 'true',
-    recipe: null,
-  };
-}
-function mergeMeals(inp, lists) {
-  const byKey = new Map();
-  for (const list of lists) for (const m of list) {
-    const k = `${m.day}|${m.type}`;
-    if (!byKey.has(k)) byKey.set(k, m);
-  }
-  return slotsFor(inp).map((s) => byKey.get(`${s.day}|${s.type}`)).filter(Boolean);
-}
 function normAisle(a) {
   const s = String(a || '').toLowerCase();
   if (/produce|fruit|veg/.test(s)) return 'Produce';
@@ -993,27 +932,19 @@ async function makePlan() {
 
     job.step = 'meals';
     queueProgress();
-    const runMeals = async (wanted, already) => {
-      const prompt = planPrompt(inp, store, wanted, already);
-      const text = await gemma.generate(prompt, {
-        signal: job.abort.signal,
-        temperature: 0.7,
-        maxOutputTokens: fitOutput(prompt, Math.min(2400, 80 * wanted.length + 200)),
-        onText: (t) => {
-          const found = extractObjects(t).map((o) => normMeal(o, inp)).filter(Boolean);
-          job.meals = mergeMeals(inp, [already || [], found]);
-          queueProgress();
-        },
-      });
-      return extractObjects(text).map((o) => normMeal(o, inp)).filter(Boolean);
-    };
-    let meals = mergeMeals(inp, [await runMeals(job.wanted, null)]);
-    const missing = job.wanted.filter((s) => !meals.some((m) => m.day === s.day && m.type === s.type));
-    if (missing.length && meals.length) {
-      const more = await runMeals(missing, meals);
-      meals = mergeMeals(inp, [meals, more]);
-    }
-    if (!meals.length) throw Object.assign(new Error('Qwen3’s answer didn’t come out as a meal plan. Tap Make my meal plan to try again.'), { code: 'parse' });
+    // One meal per request: the app sets the day and meal, so none can go missing.
+    const meals = await planMeals({
+      slots: job.wanted,
+      ask: (slot, done, attempt) => {
+        const prompt = planPrompt(inp, store, [slot], done);
+        return gemma.generate(prompt, {
+          signal: job.abort.signal,
+          temperature: attempt ? 0.4 : 0.7,
+          maxOutputTokens: fitOutput(prompt, 200),
+        });
+      },
+      onMeal: (done) => { job.meals = done; queueProgress(); },
+    });
     job.meals = meals;
 
     job.step = 'list';
@@ -1874,4 +1805,4 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 }
 
 // For automated checks only.
-window.__cartcook = { state, extractObjects, parseRecipe, normMeal, normItem, mealCosts, planPrompt, listPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };
+window.__cartcook = { state, extractObjects, parseRecipe, normItem, mealCosts, planPrompt, listPrompt, recipePrompt, makePlan, renderStores, renderMeals, renderList, go };
