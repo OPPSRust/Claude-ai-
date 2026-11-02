@@ -6,13 +6,36 @@ import { CONTEXT_TOKENS } from './limits.js';
 const LIB_URL = 'https://cdn.jsdelivr.net/npm/@litert-lm/core@0.19.0/+esm';
 const DIR = 'models';
 
+// Qwen3 0.6B (Alibaba, Apache 2.0): Gemma 4 E2B (2 GB) crashed every time it loaded in
+// iPhone Safari, so the app uses this 343 MB model, which runs on LiteRT-LM 0.19.0 WebGPU.
 export const MODEL = {
-  name: 'Gemma 4 E2B',
-  file: 'gemma-4-E2B-it-gpu.litertlm',
+  name: 'Qwen3 0.6B',
+  file: 'Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm',
   // Pinned to one revision so the file never changes under a half-finished download.
-  url: 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/1caa527c1e88b55f046fcd8d2b4265606680663d/gemma-4-E2B-it-gpu.litertlm',
-  size: 2008432640,
+  url: 'https://huggingface.co/litert-community/Qwen3-0.6B/resolve/722a0a54c1301a4b07a9856a9590d56362f0969b/Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm',
+  size: 343490560,
+  // Qwen3 thinks out loud unless told not to; plans don't need it and it costs time.
+  noThink: true,
 };
+
+// Models this app used before. Deleted at launch to free their space.
+const LEGACY_FILES = ['gemma-4-E2B-it-gpu.litertlm'];
+
+/** Deletes old model files. Returns true if anything was deleted. */
+export async function removeLegacyModels() {
+  let removed = false;
+  try {
+    const root = await navigator.storage.getDirectory();
+    const folder = await root.getDirectoryHandle(DIR);
+    for (const name of LEGACY_FILES) {
+      try {
+        await folder.removeEntry(name);
+        removed = true;
+      } catch (e) { /* not there */ }
+    }
+  } catch (e) { /* no models folder yet */ }
+  return removed;
+}
 
 const TOP_P = 2; // LiteRT-LM SamplerType.TOP_P
 
@@ -167,7 +190,7 @@ export async function generate(prompt, { onText, signal, temperature = 0.6, maxO
   };
   if (signal) signal.addEventListener('abort', onAbort, { once: true });
   try {
-    const stream = conversation.sendMessageStreaming(prompt);
+    const stream = conversation.sendMessageStreaming(MODEL.noThink ? `${prompt}\n/no_think` : prompt);
     for await (const chunk of stream) {
       if (stopped) break;
       const content = chunk && chunk.content;

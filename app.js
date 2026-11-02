@@ -429,7 +429,7 @@ function renderStoreRow() {
 }
 
 // ---------------------------------------------------------------------------
-// Gemma model card
+// Qwen3 model card
 // ---------------------------------------------------------------------------
 let download = null;
 let rateSamples = [];
@@ -439,7 +439,7 @@ async function refreshModelState() {
   if (!support.ok) {
     state.model.phase = 'unsupported';
     state.model.message = support.reason === 'webgpu'
-      ? 'This browser has no WebGPU, which Gemma needs. Open Cart & Cook in Safari on iOS 26 or later.'
+      ? 'This browser has no WebGPU, which Qwen3 needs. Open Cart & Cook in Safari on iOS 26 or later.'
       : 'This browser cannot store the model. Open Cart & Cook in Safari on iOS 26 or later.';
   } else {
     const bytes = await gemma.storedBytes();
@@ -473,13 +473,13 @@ function renderModelCard() {
   const card = h('div', { class: 'glass model-card' });
   card.append(h('div', { class: 'model-top' },
     h('div', { class: 'model-icon' }, icon('chip')),
-    h('div', null, h('div', { class: 'model-name' }, 'Gemma 4'), h('div', { class: 'model-sub' }, 'Google’s AI, on your iPhone')),
+    h('div', null, h('div', { class: 'model-name' }, 'Qwen3'), h('div', { class: 'model-sub' }, 'Alibaba’s open AI, on your iPhone')),
     h('span', { class: `pill ${tone}` }, statusText),
   ));
 
   const pct = Math.min(100, (m.loaded / gemma.MODEL.size) * 100);
   const progress = () => h('div', null,
-    h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(pct)), 'aria-label': 'Gemma 4 download' },
+    h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(pct)), 'aria-label': 'Qwen3 download' },
       h('span', { style: `width:${pct.toFixed(1)}%` })),
     h('div', { class: 'progress-meta', style: 'margin-top:8px' },
       h('span', null, `${gb(m.loaded)} of ${gb(gemma.MODEL.size)} GB`),
@@ -488,16 +488,16 @@ function renderModelCard() {
 
   switch (m.phase) {
     case 'checking':
-      card.append(h('p', { class: 'model-text' }, 'Looking for Gemma on this iPhone…'));
+      card.append(h('p', { class: 'model-text' }, 'Looking for Qwen3 on this iPhone…'));
       break;
     case 'unsupported':
       card.append(h('p', { class: 'model-text' }, m.message));
       break;
     case 'absent':
       card.append(
-        h('p', { class: 'model-text' }, 'Download Gemma once over Wi-Fi (2.0 GB). After that it writes your plans, recipes and prices right here on your phone, even offline.'),
+        h('p', { class: 'model-text' }, 'Download Qwen3 once over Wi-Fi (340 MB). After that it writes your plans, recipes and prices right here on your phone, even offline.'),
         h('div', { class: 'model-actions' },
-          h('button', { type: 'button', class: 'btn primary', onclick: startDownload }, icon('download'), 'Download Gemma 4 · 2.0 GB')),
+          h('button', { type: 'button', class: 'btn primary', onclick: startDownload }, icon('download'), 'Download Qwen3 · 340 MB')),
       );
       break;
     case 'paused':
@@ -514,9 +514,9 @@ function renderModelCard() {
       break;
     case 'downloaded':
       if (m.crashedLastTime) {
-        card.append(h('p', { class: 'model-text' }, 'Gemma closed while loading last time. That usually means your iPhone needed the memory for something else. Close other apps, then tap Load Gemma.'),
+        card.append(h('p', { class: 'model-text' }, 'Qwen3 closed while loading last time. That usually means your iPhone needed the memory for something else. Close other apps, then tap Load Qwen3.'),
           h('div', { class: 'model-actions' },
-            h('button', { type: 'button', class: 'btn primary', onclick: loadGemmaNow }, icon('chip'), 'Load Gemma'),
+            h('button', { type: 'button', class: 'btn primary', onclick: loadGemmaNow }, icon('chip'), 'Load Qwen3'),
             removeButton()));
       } else {
         card.append(h('p', { class: 'model-text' }, 'Saved on this iPhone. It wakes up when you make a plan and works without internet.'),
@@ -524,7 +524,7 @@ function renderModelCard() {
       }
       break;
     case 'loading':
-      card.append(h('div', { class: 'writing' }, h('div', { class: 'spinner' }), 'Waking Gemma up on your iPhone’s GPU…'));
+      card.append(h('div', { class: 'writing' }, h('div', { class: 'spinner' }), 'Waking Qwen3 up on your iPhone’s GPU…'));
       break;
     case 'loaded':
       card.append(h('p', { class: 'model-text' }, 'Awake and ready. Everything runs on this iPhone.'));
@@ -549,7 +549,7 @@ async function loadGemmaNow() {
     beginLoad(store);
     await warmUp();
     endLoad(store, true);
-    toast('Gemma 4 is ready');
+    toast('Qwen3 is ready');
   } catch (e) {
     toast(friendlyError(e));
   }
@@ -587,7 +587,7 @@ function removeButton() {
       }
       m.confirmRemove = false;
       await gemma.removeModel();
-      toast('Gemma removed. 2 GB freed.');
+      toast('Qwen3 removed. 340 MB freed.');
       refreshModelState();
     },
   }, icon('trash'), m.confirmRemove ? 'Tap again to remove' : 'Remove');
@@ -612,7 +612,7 @@ async function startDownload() {
     const need = gemma.MODEL.size - (await gemma.storedBytes());
     if (est && est.quota && est.quota - (est.usage || 0) < need + 50e6) {
       state.model.phase = 'error';
-      state.model.message = 'There isn’t enough free space for Gemma (about 2 GB). Free up some space on your iPhone, then try again.';
+      state.model.message = 'There isn’t enough free space for Qwen3 (about 340 MB). Free up some space on your iPhone, then try again.';
       renderModelCard();
       return;
     }
@@ -639,7 +639,7 @@ async function startDownload() {
     await download.done;
     state.model.phase = 'downloaded';
     state.model.loaded = gemma.MODEL.size;
-    toast('Gemma 4 is on your iPhone');
+    toast('Qwen3 is on your iPhone');
   } catch (e) {
     state.model.loaded = await gemma.storedBytes();
     if (e && e.paused) {
@@ -681,7 +681,7 @@ function modelReady() {
 function updateCta() {
   const btn = $('#makePlan');
   btn.disabled = !!state.job;
-  btn.textContent = state.job && state.job.kind === 'plan' ? 'Gemma is cooking…' : 'Make my meal plan';
+  btn.textContent = state.job && state.job.kind === 'plan' ? 'Qwen3 is cooking…' : 'Make my meal plan';
 }
 
 // ---------------------------------------------------------------------------
@@ -921,18 +921,18 @@ function parseRecipe(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Running Gemma
+// Running Qwen3
 // ---------------------------------------------------------------------------
 function friendlyError(e) {
   if (!e) return 'Something went wrong. Try again.';
-  if (e.code === 'not_downloaded') return 'Download Gemma 4 first (the card at the top of this page).';
+  if (e.code === 'not_downloaded') return 'Download Qwen3 first (the card at the top of this page).';
   if (e.code === 'runtime' || e.code === 'engine') return e.message;
   if (e.code === 'parse') return e.message;
   const detail = String((e && e.message) || '').slice(0, 160);
   if (/timed out/i.test(detail)) {
-    return 'Gemma took too long on this phone. Close other apps, try fewer days or meals, then try again.';
+    return 'Qwen3 took too long on this phone. Close other apps, try fewer days or meals, then try again.';
   }
-  return `Gemma stopped unexpectedly${detail ? ` (${detail})` : ''}. Close other apps, then try again.`;
+  return `Qwen3 stopped unexpectedly${detail ? ` (${detail})` : ''}. Close other apps, then try again.`;
 }
 
 async function ensureLoaded(onStage) {
@@ -977,7 +977,7 @@ async function makePlan() {
   if (state.model.phase === 'unsupported') return fail(state.model.message);
   if (!modelReady()) {
     $('#modelCard').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-    return fail('Download Gemma 4 first. It only takes one download, then it works offline.');
+    return fail('Download Qwen3 first. It only takes one download, then it works offline.');
   }
 
   const store = state.store ? clone(state.store) : null;
@@ -1013,13 +1013,13 @@ async function makePlan() {
       const more = await runMeals(missing, meals);
       meals = mergeMeals(inp, [meals, more]);
     }
-    if (!meals.length) throw Object.assign(new Error('Gemma’s answer didn’t come out as a meal plan. Tap Make my meal plan to try again.'), { code: 'parse' });
+    if (!meals.length) throw Object.assign(new Error('Qwen3’s answer didn’t come out as a meal plan. Tap Make my meal plan to try again.'), { code: 'parse' });
     job.meals = meals;
 
     job.step = 'list';
     queueProgress();
     const items = await runList(inp, store, meals, null, job);
-    if (!items.length) throw Object.assign(new Error('Gemma’s shopping list didn’t come out right. Tap Make my meal plan to try again.'), { code: 'parse' });
+    if (!items.length) throw Object.assign(new Error('Qwen3’s shopping list didn’t come out right. Tap Make my meal plan to try again.'), { code: 'parse' });
 
     state.record = { id: String(Date.now()), example: false, createdAt: new Date().toISOString(), inputs: inp, store, meals, list: items };
     save();
@@ -1062,7 +1062,7 @@ async function makeCheaper() {
   try {
     await ensureLoaded();
     const items = await runList(rec.inputs, rec.store, rec.meals, total, job);
-    if (!items.length) throw Object.assign(new Error('Gemma’s new list didn’t come out right. Try again.'), { code: 'parse' });
+    if (!items.length) throw Object.assign(new Error('Qwen3’s new list didn’t come out right. Try again.'), { code: 'parse' });
     rec.list = items;
     save();
     toast(`New list: ${moneyFmt(rec.inputs.currency)(listTotal(rec))}`);
@@ -1093,10 +1093,10 @@ function renderProgress() {
   const itemsTotal = job.items.reduce((a, it) => a + it.price, 0);
   const card = h('div', { class: 'glass job' },
     h('div', { class: 'job-head' },
-      h('div', { class: 'job-title' }, 'Gemma is cooking up your week'),
+      h('div', { class: 'job-title' }, 'Qwen3 is cooking up your week'),
       h('button', { type: 'button', class: 'btn small plain', onclick: () => job.abort.abort() }, 'Stop')),
     h('ul', { class: 'steps' },
-      stepRow('wake', 'Waking Gemma on your iPhone', job.step === 'wake' ? 'Loading the model onto the GPU' : null),
+      stepRow('wake', 'Waking Qwen3 on your iPhone', job.step === 'wake' ? 'Loading the model onto the GPU' : null),
       stepRow('meals', 'Planning meals', job.meals.length ? `${job.meals.length} of ${job.wanted.length}` : null),
       stepRow('list', 'Pricing your shopping list', job.items.length ? `${plural(job.items.length, 'item', 'items')} · ${money(itemsTotal)} so far` : null)),
     job.meals.length ? h('ul', { class: 'feed', 'aria-label': 'Meals so far' },
@@ -1254,7 +1254,7 @@ function renderStores() {
     }
   } else {
     parts.push(h('div', { class: 'glass empty', style: 'margin-top:16px' }, icon('pin'),
-      h('p', null, 'Type your ZIP code or tap Use my location to see the grocery stores around you. Pick the one you shop at and Gemma prices your list with that store’s own brands.')));
+      h('p', null, 'Type your ZIP code or tap Use my location to see the grocery stores around you. Pick the one you shop at and Qwen3 prices your list with that store’s own brands.')));
   }
 
   const typed = h('input', { type: 'text', id: 'storeText', placeholder: 'Type a store name', value: state.inputs.storeText || '', autocomplete: 'off' });
@@ -1350,7 +1350,7 @@ function renderMeals() {
       h('p', { class: 'meta-line' }, recordMeta(rec))),
   ];
   if (rec.example) {
-    parts.push(h('div', { class: 'example-banner' }, h('span', null, h('b', null, 'This is a sample. '), 'Set up your week on the Plan tab and Gemma will make yours.')));
+    parts.push(h('div', { class: 'example-banner' }, h('span', null, h('b', null, 'This is a sample. '), 'Set up your week on the Plan tab and Qwen3 will make yours.')));
   }
   parts.push(h('div', { class: 'glass summary' },
     ring,
@@ -1364,7 +1364,7 @@ function renderMeals() {
       tone === 'bad' && !rec.example
         ? h('button', { type: 'button', class: 'btn small tinted', disabled: !!state.job, onclick: makeCheaper },
           cheaperBusy ? h('span', { class: 'spinner', style: 'width:16px;height:16px;border-width:2px' }) : icon('refresh'),
-          cheaperBusy ? 'Gemma is trimming…' : 'Make it cheaper')
+          cheaperBusy ? 'Qwen3 is trimming…' : 'Make it cheaper')
         : null),
   ));
 
@@ -1394,7 +1394,7 @@ function renderMeals() {
   parts.push(h('div', { class: 'foot-actions' },
     h('button', { type: 'button', class: 'btn plain block', onclick: () => go('list') }, icon('basket'), 'Shopping list'),
     h('button', { type: 'button', class: 'btn tinted block', onclick: () => go('plan') }, rec.example ? 'Make my own plan' : 'Make a new plan'),
-    h('p', { class: 'fine' }, 'Meal prices split the shopping list across the meals that use each item. Prices are Gemma’s estimates.')));
+    h('p', { class: 'fine' }, 'Meal prices split the shopping list across the meals that use each item. Prices are Qwen3’s estimates.')));
   box.replaceChildren(...parts);
 }
 
@@ -1452,23 +1452,23 @@ async function fillRecipe(rec, idx, body) {
   const people = rec.inputs.people;
   if (meal.recipe) { body.replaceChildren(...recipeView(meal.recipe, people, false)); return; }
   if (state.job) {
-    body.replaceChildren(h('p', { class: 'model-text' }, 'Gemma is busy with your plan. Open this meal again when it’s done and the recipe will be written then.'));
+    body.replaceChildren(h('p', { class: 'model-text' }, 'Qwen3 is busy with your plan. Open this meal again when it’s done and the recipe will be written then.'));
     return;
   }
   if (!modelReady()) {
     body.replaceChildren(
-      h('p', { class: 'model-text' }, 'Recipes are written by Gemma 4 on your iPhone. Download it first on the Plan tab.'),
-      h('button', { type: 'button', class: 'btn primary', onclick: () => { sheet.close(); go('plan'); } }, icon('download'), 'Get Gemma 4'));
+      h('p', { class: 'model-text' }, 'Recipes are written by Qwen3 on your iPhone. Download it first on the Plan tab.'),
+      h('button', { type: 'button', class: 'btn primary', onclick: () => { sheet.close(); go('plan'); } }, icon('download'), 'Get Qwen3'));
     return;
   }
   sheetCtl = new AbortController();
   const signal = sheetCtl.signal;
-  const status = h('div', { class: 'writing' }, h('div', { class: 'spinner' }), gemma.isLoaded() ? 'Gemma is writing this recipe…' : 'Waking Gemma up…');
+  const status = h('div', { class: 'writing' }, h('div', { class: 'spinner' }), gemma.isLoaded() ? 'Qwen3 is writing this recipe…' : 'Waking Qwen3 up…');
   body.replaceChildren(status);
   keepAwake('recipe', true);
   try {
     await ensureLoaded();
-    status.lastChild.textContent = 'Gemma is writing this recipe…';
+    status.lastChild.textContent = 'Qwen3 is writing this recipe…';
     const prompt = recipePrompt(rec, idx);
     const text = await gemma.generate(prompt, {
       signal, temperature: 0.5, maxOutputTokens: fitOutput(prompt, 900),
@@ -1519,7 +1519,7 @@ function listText(rec) {
 
 function priceNote(rec) {
   const link = stores.priceLink(rec.store, 'eggs', rec.inputs.zip);
-  const base = 'Prices are Gemma’s estimates. Tap the link under any item to see the real price';
+  const base = 'Prices are Qwen3’s estimates. Tap the link under any item to see the real price';
   if (link.instacart) return `${base} on the store’s Instacart page (Instacart prices can run a little higher than in the store).`;
   if (/^Price at /.test(link.label)) return `${base} on ${rec.store.name}’s website.`;
   return `${base} online.`;
@@ -1704,7 +1704,7 @@ function renderList() {
       h('h1', { class: 'large-title', id: 'list-title' }, 'Shopping list'),
       h('p', { class: 'meta-line' }, recordMeta(rec))),
   ];
-  if (rec.example) parts.push(h('div', { class: 'example-banner' }, h('span', null, h('b', null, 'Sample list. '), 'Your own list appears here after Gemma makes your plan.')));
+  if (rec.example) parts.push(h('div', { class: 'example-banner' }, h('span', null, h('b', null, 'Sample list. '), 'Your own list appears here after Qwen3 makes your plan.')));
   const summaryText = h('span', null, `${got.length} of ${rec.list.length} in your cart`);
   const summaryBar = h('span', { style: `width:${pct.toFixed(1)}%` });
   parts.push(h('div', { class: 'glass list-summary' },
@@ -1821,6 +1821,14 @@ async function boot() {
   } else {
     gpuVendor = 'none';
   }
+  if (await gemma.removeLegacyModels()) {
+    // Qwen3's crashes don't apply to the new model: start fresh.
+    endLoad(store, true);
+    guard.autoLoad = true;
+    state.model.crashedLastTime = false;
+    state.model.crashes = 0;
+    logEvent(store, 'model', `switched from Qwen3 to ${gemma.MODEL.name}`);
+  }
   await refreshModelState();
   logEvent(store, 'model', state.model.phase);
   if (state.model.phase !== 'downloaded' || !guard.autoLoad) {
@@ -1831,20 +1839,20 @@ async function boot() {
   }
   const skipTimer = setTimeout(() => { skip.hidden = false; }, 7000);
   try {
-    set('Getting Gemma 4 ready…', 30);
+    set('Getting Qwen3 ready…', 30);
     await ensureLoaded((stage) => {
       if (stage === 'runtime') set('Starting the AI engine…', 42);
-      if (stage === 'model') set('Loading Gemma 4 onto your iPhone’s chip…', 88, true);
+      if (stage === 'model') set('Loading Qwen3 onto your iPhone’s chip…', 88, true);
     });
     if (closed) return;
     set('Warming up…', 94);
     beginLoad(store);
     await warmUp();
     endLoad(store, true);
-    set('Gemma 4 is ready', 100);
+    set('Qwen3 is ready', 100);
     await wait(300);
   } catch (e) {
-    set('Gemma couldn’t start. You can still use the app.', 100);
+    set('Qwen3 couldn’t start. You can still use the app.', 100);
     state.model.message = friendlyError(e);
     await wait(1800);
   } finally {

@@ -21,11 +21,12 @@ try {
 
   // Make Gemma look downloaded (sparse file of the right size) and leave a load "in progress".
   await page.evaluate(async () => {
+    const { MODEL } = await import('./gemma.js');
     const root = await navigator.storage.getDirectory();
     const dir = await root.getDirectoryHandle('models', { create: true });
-    const fh = await dir.getFileHandle('gemma-4-E2B-it-gpu.litertlm', { create: true });
+    const fh = await dir.getFileHandle(MODEL.file, { create: true });
     const w = await fh.createWritable({ keepExistingData: false });
-    await w.truncate(2008432640);
+    await w.truncate(MODEL.size);
     await w.close();
     localStorage.setItem('cartcook.gemmaLoad', JSON.stringify({ inProgress: true, startedAt: Date.now(), autoLoad: true, crashes: 0 }));
   });

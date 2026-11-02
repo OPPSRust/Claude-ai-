@@ -1,14 +1,15 @@
 # Cart & Cook
 
 A meal planner for your iPhone. Tell it how many people are eating, how many days to plan,
-which meals, and your grocery budget. It finds grocery stores near you, then **Gemma 4,
+which meals, and your grocery budget. It finds grocery stores near you, then **Qwen3,
 running on your phone**, writes the meal plan, the recipes and a priced shopping list.
 
-- **On-device AI.** Uses Google's Gemma 4 E2B model through the
+- **On-device AI.** Uses Alibaba's open Qwen3 0.6B model through Google's
   [LiteRT-LM](https://ai.google.dev/edge/litert-lm) web runtime and your phone's GPU (WebGPU).
-  The model downloads once (2.0 GB) and is stored privately on the phone. After that, plans and
-  recipes work offline, and nothing you type is sent anywhere.
-- **Quick start.** A launch screen loads Gemma onto the phone's GPU and warms it up while the
+  The model downloads once (340 MB) and is stored privately on the phone. After that, plans and
+  recipes work offline, and nothing you type is sent anywhere. (Gemma 4 E2B was tried first,
+  but its 2 GB model crashed every time it loaded in iPhone Safari.)
+- **Quick start.** A launch screen loads the model onto the phone's GPU and warms it up while the
   app opens, so the first plan starts right away.
 - **Stores by ZIP code or location.** Type your ZIP code, or tap the location button, and it
   lists the supermarkets and grocery stores around you from OpenStreetMap (Overpass and
@@ -59,6 +60,6 @@ it also needs internet once to fetch the Gemma runtime, which is then cached for
 ## Notes
 
 - Prices are Gemma's estimates, not live store prices.
-- Gemma 4 E2B is a small model. Plans are good starting points; check recipes for allergens.
-- Store data © OpenStreetMap contributors. Gemma is provided under the Apache 2.0 license by
-  Google via the `litert-community/gemma-4-E2B-it-litert-lm` model on Hugging Face.
+- Qwen3 0.6B is a small model. Plans are good starting points; check recipes for allergens.
+- Store data © OpenStreetMap contributors. Qwen3 is provided under the Apache 2.0 license by
+  Alibaba via the `litert-community/Qwen3-0.6B` model on Hugging Face.

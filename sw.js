@@ -1,7 +1,7 @@
 // Keeps Cart & Cook working offline: the app files, fonts and the Gemma runtime are cached.
 // The 2 GB model itself is stored separately by the app (private file storage), not here.
 
-const SHELL_CACHE = 'cc-shell-v4';
+const SHELL_CACHE = 'cc-shell-v5';
 const RUNTIME_CACHE = 'cc-runtime-v1';
 const SHELL = [
   './',
