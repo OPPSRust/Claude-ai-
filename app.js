@@ -546,7 +546,9 @@ function renderModelCard() {
 async function loadGemmaNow() {
   try {
     await ensureLoaded();
+    beginLoad(store);
     await warmUp();
+    endLoad(store, true);
     toast('Gemma 4 is ready');
   } catch (e) {
     toast(friendlyError(e));
@@ -1836,7 +1838,9 @@ async function boot() {
     });
     if (closed) return;
     set('Warming up…', 94);
+    beginLoad(store);
     await warmUp();
+    endLoad(store, true);
     set('Gemma 4 is ready', 100);
     await wait(300);
   } catch (e) {
