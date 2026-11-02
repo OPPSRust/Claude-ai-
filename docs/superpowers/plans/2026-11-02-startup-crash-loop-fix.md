@@ -46,7 +46,7 @@
 | `startup-guard.js` (new) | Decide whether to auto-load Gemma at launch, and record load start and end |
 | `diagnostics.js` (new) | Capped launch and load event log, and the plain-text report |
 | `app.js` (modify) | Call the guard and log from `boot()`, `ensureLoaded()` and `startDownload()`; show the crash notice and the "Copy details" button |
-| `gemma.js` (modify) | Reduce context size |
+| `gemma.js` (modify), `limits.js` (new) | Smaller context size and a cap on answer length |
 | `manifest.webmanifest`, `404.html` (new), `sw.js` (modify) | Absolute start address, redirect for wrong addresses inside the site, cache version bump |
 | `tests/unit/*.test.mjs` (new) | `node:test` unit tests |
 | `tests/browser/*.mjs` (new), `tests/serve.mjs` (new) | Playwright checks against a local static server |
@@ -125,7 +125,8 @@ git commit -m "Add startup guard and diagnostics log for Gemma loading"
   - `tests/serve.mjs`: `startServer(port = 8790) -> Promise<{ url: string, close(): Promise<void> }>`. It serves the repo root with correct content types.
 
 - [ ] **Step 1: Write the failing browser test** in `tests/browser/crash-guard.mjs`. It starts `startServer()`, launches Chromium with the WebGPU flags `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-webgpu-adapter=swiftshader --disable-vulkan-surface`, and asserts:
-  - `crash notice after an unfinished load`: before loading the app, `addInitScript` sets `localStorage['cartcook.gemmaLoad'] = JSON.stringify({ inProgress: true, startedAt: Date.now(), autoLoad: true, crashes: 0 })`. After launch, `#splash` is hidden within 3000 ms, `#modelCard` contains the text `closed while loading`, and `window.__cartcook.state.model.phase !== 'loading'` (Gemma was not auto-loaded).
+  - Setup, so the app sees Gemma as downloaded without a real 2 GB download: open the app once. In the page, create `models/gemma-4-E2B-it-gpu.litertlm` in the private file storage (`navigator.storage.getDirectory()`) and resize it to exactly `2008432640` bytes with `createWritable({ keepExistingData: false })`, then `truncate(2008432640)`, then `close()`. That makes a sparse, zero-filled file. Set `localStorage['cartcook.gemmaLoad'] = JSON.stringify({ inProgress: true, startedAt: Date.now(), autoLoad: true, crashes: 0 })`, then reload.
+  - `crash notice after an unfinished load`: after the reload, `#splash` is hidden within 3000 ms, `#modelCard` contains the text `closed while loading`, and `window.__cartcook.state.model.phase === 'downloaded'` (Gemma was not auto-loaded).
   - `launch is logged`: `JSON.parse(localStorage['cartcook.log'])` has an entry whose `stage === 'boot'` and whose `detail` contains `/Claude-ai-/` or `localhost`.
   - `copy details falls back to a text box`: after overriding `navigator.clipboard.writeText` to reject, clicking `Copy details` shows a `textarea.diag-text` whose value contains `boot` (Review Focus 5).
   - The script prints `PASS` or `FAIL <reason>`, and exits 0 or 1 accordingly.
@@ -199,12 +200,13 @@ Note for the user, outside the code: a crash that lands on the bare `https://opp
 ### Task 4: Lower Gemma's memory use
 
 **Files:**
-- Modify: `gemma.js`. Change `mainExecutorSettings.maxNumTokens` from `4096` to `3072`, and export it as `export const CONTEXT_TOKENS = 3072`.
-- Modify: `app.js`. Cap each call's `maxOutputTokens` so the estimated prompt plus answer fits: `Math.min(current, CONTEXT_TOKENS - Math.ceil(prompt.length / 3) - 64)`. Apply it in `generate` callers via a helper `fitOutput(prompt: string, wanted: number) -> number`.
-- Test: `tests/unit/fit-output.test.mjs`. Move `fitOutput` into `startup-guard.js`'s neighbour `limits.js` (new) so Node can import it without the DOM.
+- Create: `limits.js`. It has no DOM, so Node can import it.
+- Modify: `gemma.js`. Change `mainExecutorSettings.maxNumTokens` from `4096` to `CONTEXT_TOKENS`, imported from `limits.js`.
+- Modify: `app.js`. The three `gemma.generate` callers (`runMeals`, `runList`, `fillRecipe`) pass `maxOutputTokens: fitOutput(prompt, <their current value>)`.
+- Test: `tests/unit/fit-output.test.mjs`
 
 **Interfaces:**
-- Produces: `limits.js` exporting `fitOutput(prompt: string, wanted: number, context = 3072) -> number`, which never returns less than 256.
+- Produces: `limits.js` exporting `CONTEXT_TOKENS = 3072` and `fitOutput(prompt: string, wanted: number, context = CONTEXT_TOKENS) -> number`, which returns `max(256, min(wanted, context - ceil(prompt.length / 3) - 64))`.
 
 - [ ] **Step 1: Write the failing test** `tests/unit/fit-output.test.mjs`:
   - `fitOutput('x'.repeat(300), 2200)` returns `2200` (that is, `min(2200, 3072 - 100 - 64)`)
