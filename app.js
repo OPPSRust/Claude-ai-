@@ -921,7 +921,12 @@ async function makePlan() {
         return gemma.generate(prompt, {
           signal: job.abort.signal,
           temperature: attempt ? 0.4 : 0.7,
-          maxOutputTokens: fitOutput(prompt, 200),
+          maxOutputTokens: fitOutput(prompt, 300),
+        }).then((answer) => {
+          // Evidence for Copy details if the AI's answer isn't usable.
+          if (!answer.trim()) logEvent(store, 'ai:empty', `day ${slot.day} try ${attempt + 1}`);
+          else if (!answer.includes('{')) logEvent(store, 'ai:unreadable', `day ${slot.day}: ${answer.slice(0, 120)}`);
+          return answer;
         });
       },
       onMeal: (done) => { job.meals = done; queueProgress(); },

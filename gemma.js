@@ -182,18 +182,27 @@ export async function unload() {
 }
 
 /**
+ * Settings for one conversation. Thinking is switched off in the chat template: Qwen3 otherwise
+ * reasons first, and that reasoning counts toward maxOutputTokens, leaving an empty answer.
+ */
+export function conversationConfig({ temperature = 0.6, maxOutputTokens = 1024 } = {}) {
+  return {
+    preface: { extra_context: { enable_thinking: false } },
+    sessionConfig: {
+      samplerParams: { type: TOP_P, temperature, k: 40, p: 0.95 },
+      maxOutputTokens,
+    },
+  };
+}
+
+/**
  * Sends one prompt in a fresh conversation and streams the answer.
  * onText receives the whole answer so far. Rejects with { code: 'cancelled' } on abort.
  */
 export async function generate(prompt, { onText, signal, temperature = 0.6, maxOutputTokens = 1024 } = {}) {
   const eng = await load();
   if (signal && signal.aborted) throw codeError('cancelled', 'Stopped.');
-  const conversation = await eng.createConversation({
-    sessionConfig: {
-      samplerParams: { type: TOP_P, temperature, k: 40, p: 0.95 },
-      maxOutputTokens,
-    },
-  });
+  const conversation = await eng.createConversation(conversationConfig({ temperature, maxOutputTokens }));
   let text = '';
   let stopped = false;
   const onAbort = () => {
