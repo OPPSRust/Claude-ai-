@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cart &amp; Cook</title>
+  <meta name="description" content="Meal plans, recipes and a priced shopping list for your household, written by Gemma 4 on your iPhone.">
+  <meta name="theme-color" content="#F2F3EF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B0C0D" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cart &amp; Cook">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="aura" aria-hidden="true"></div>
+
+  <main id="app">
+    <!-- PLAN -->
+    <section class="tab" id="tab-plan" data-tab="plan" aria-labelledby="plan-title">
+      <header class="hero">
+        <p class="kicker" id="weekOf">This week</p>
+        <h1 class="large-title" id="plan-title">Cart &amp; Cook</h1>
+        <p class="hero-sub">Tell it who's eating and what you can spend. Gemma 4 plans the meals, writes the recipes and prices your list, right on this iPhone.</p>
+      </header>
+
+      <div id="modelCard"></div>
+
+      <h2 class="group-label">Your week</h2>
+      <div class="group glass">
+        <div class="row">
+          <label class="row-label" for="people">People eating</label>
+          <div class="stepper">
+            <button type="button" id="peopleDown" aria-label="Fewer people">−</button>
+            <input id="people" type="number" inputmode="numeric" min="1" max="20" value="4">
+            <button type="button" id="peopleUp" aria-label="More people">+</button>
+          </div>
+        </div>
+        <div class="row stack">
+          <span class="row-label" id="days-label">Days to plan</span>
+          <div class="segmented" id="days" role="radiogroup" aria-labelledby="days-label"></div>
+        </div>
+        <div class="row stack">
+          <span class="row-label" id="meals-label">Meals each day</span>
+          <div class="chips" id="meals" role="group" aria-labelledby="meals-label"></div>
+        </div>
+        <div class="row">
+          <label class="row-label" for="budget">Grocery budget</label>
+          <div class="money">
+            <select id="currency" aria-label="Currency"></select>
+            <input id="budget" type="number" inputmode="decimal" min="1" step="1" value="75">
+          </div>
+        </div>
+        <div class="row-foot" id="perServing" aria-live="polite"></div>
+      </div>
+
+      <h2 class="group-label">Where you shop</h2>
+      <div class="group glass" id="storeRow"></div>
+
+      <h2 class="group-label">Tastes</h2>
+      <div class="group glass">
+        <div class="row stack">
+          <span class="row-label" id="prefs-label">Diet and preferences</span>
+          <div class="chips" id="prefs" role="group" aria-labelledby="prefs-label"></div>
+        </div>
+        <div class="row stack">
+          <label class="row-label" for="notes">Anything else? <span class="muted">Optional</span></label>
+          <textarea id="notes" rows="2" placeholder="Allergies, foods you love or skip, an air fryer or slow cooker…"></textarea>
+        </div>
+      </div>
+
+      <div class="cta-wrap">
+        <button type="button" class="cta" id="makePlan">Make my meal plan</button>
+        <p class="fine">Plans and recipes are written by Gemma 4 on this iPhone. Nothing you type leaves your phone.</p>
+      </div>
+      <div id="planError" class="alert" role="alert" hidden></div>
+      <div id="progress"></div>
+    </section>
+
+    <!-- STORES -->
+    <section class="tab" id="tab-stores" data-tab="stores" aria-labelledby="stores-title" hidden>
+      <header class="hero">
+        <p class="kicker">Near you</p>
+        <h1 class="large-title" id="stores-title">Stores</h1>
+      </header>
+      <div id="storesBody"></div>
+    </section>
+
+    <!-- MEALS -->
+    <section class="tab" id="tab-meals" data-tab="meals" aria-labelledby="meals-title" hidden>
+      <div id="mealsBody"></div>
+    </section>
+
+    <!-- LIST -->
+    <section class="tab" id="tab-list" data-tab="list" aria-labelledby="list-title" hidden>
+      <div id="listBody"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar" aria-label="Sections">
+    <a href="#plan" data-tab="plan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3.5"/><path d="M8 3v4M16 3v4M4 10h16M8.5 14h3M8.5 17h6"/></svg>
+      <span>Plan</span>
+    </a>
+    <a href="#stores" data-tab="stores">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <span>Stores</span>
+    </a>
+    <a href="#meals" data-tab="meals">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18M4.5 3v5.5a2.5 2.5 0 0 0 5 0V3M17.5 21V3c-2.2 1.4-3.5 4-3.5 7.5V14h3.5"/></svg>
+      <span>Meals</span>
+    </a>
+    <a href="#list" data-tab="list">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="M3.8 6.5l1.4 1.4L7.8 5.3M3.8 12l1.4 1.4 2.6-2.6M3.8 17.5l1.4 1.4 2.6-2.6"/></svg>
+      <span>List</span>
+      <b class="badge-count" id="listBadge" hidden></b>
+    </a>
+  </nav>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheetTitle"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
