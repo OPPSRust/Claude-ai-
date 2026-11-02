@@ -16,7 +16,7 @@ running on your phone**, writes the meal plan, the recipes and a priced shopping
   Nominatim, asked together so one being busy doesn't break the search), with distance,
   address, hours, a rough price level, the chain's own brands and directions in Apple Maps.
   The closest store is picked for you; tap another to switch.
-- **Brand names and real prices.** Gemma writes the shopping list with the store's own brands
+- **Brand names and real prices.** Qwen3 writes the shopping list with the store's own brands
   (Great Value at Walmart, Kirkland Signature at Costco, Goldhen and Happy Farms at ALDI, and so
   on). Its prices are estimates, so every item has a link to that store's own website (or its
   Instacart page) to see the real local price. No free public source gives live shelf prices
@@ -40,11 +40,11 @@ The app is a set of static files, so any HTTPS host works. With GitHub Pages:
 3. After a minute, open `https://<your-username>.github.io/<repo-name>/` in **Safari** on the iPhone.
 4. Tap **Share → Add to Home Screen**. Open it from the Home Screen icon from then on: it runs
    full screen, and iOS keeps the downloaded model for Home Screen apps.
-5. In the app, tap **Download Gemma 4** on Wi-Fi and keep the app open until it finishes
+5. In the app, tap **Download Qwen3** on Wi-Fi and keep the app open until it finishes
    (a few minutes). If it stops, it resumes where it left off.
 
 Requirements: iOS 26 or later (Safari with WebGPU) and about 2.5 GB of free space. On first use
-it also needs internet once to fetch the Gemma runtime, which is then cached for offline use.
+it also needs internet once to fetch the AI runtime, which is then cached for offline use.
 
 ## Files
 
@@ -52,14 +52,14 @@ it also needs internet once to fetch the Gemma runtime, which is then cached for
 | --- | --- |
 | `index.html`, `styles.css` | Layout and look |
 | `app.js` | Tabs, form, prompts, meal plan, recipes, shopping list |
-| `gemma.js` | Loads Gemma 4 with LiteRT-LM and streams answers |
+| `gemma.js` | Loads the on-device model (Qwen3 0.6B) with LiteRT-LM and streams answers |
 | `download-worker.js` | Downloads the model into private storage, resumable |
 | `stores.js` | ZIP lookup, OpenStreetMap store search, chain brands and price links |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Home Screen app and offline support |
 
 ## Notes
 
-- Prices are Gemma's estimates, not live store prices.
+- Prices are the AI's estimates, not live store prices.
 - Qwen3 0.6B is a small model. Plans are good starting points; check recipes for allergens.
 - Store data © OpenStreetMap contributors. Qwen3 is provided under the Apache 2.0 license by
   Alibaba via the `litert-community/Qwen3-0.6B` model on Hugging Face.
