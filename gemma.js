@@ -98,14 +98,19 @@ export function isLoaded() {
   return !!engine;
 }
 
-/** Loads the saved model onto the GPU. Safe to call repeatedly. */
-export async function load() {
+/**
+ * Loads the saved model onto the GPU. Safe to call repeatedly.
+ * onStage (optional) hears 'runtime' then 'model' as loading moves along.
+ */
+export async function load(onStage) {
   if (engine) return engine;
   if (loading) return loading;
+  const stage = (s) => { try { if (onStage) onStage(s); } catch (e) { /* display only */ } };
   loading = (async () => {
     const fh = await modelFileHandle(false).catch(() => null);
     const file = fh ? await fh.getFile() : null;
     if (!file || file.size !== MODEL.size) throw codeError('not_downloaded', 'Gemma 4 is not downloaded yet.');
+    stage('runtime');
     if (!lib) {
       try {
         lib = await import(LIB_URL);
@@ -113,6 +118,7 @@ export async function load() {
         throw codeError('runtime', 'The Gemma runtime could not load. Connect to the internet once so it can be saved for offline use.');
       }
     }
+    stage('model');
     try {
       engine = await lib.Engine.create({
         model: file,

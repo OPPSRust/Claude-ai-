@@ -123,37 +123,125 @@ export async function geocode(query, countryCode, signal) {
   throw new Error(`No place with ZIP code “${query}” was found. Check the number and try again.`);
 }
 
-/** Grocery stores within radiusM meters of a point, nearest first. */
-export async function findStores(origin, radiusM, signal) {
-  const r = Math.round(radiusM);
-  const query = `[out:json][timeout:25];nwr["shop"~"^(supermarket|grocery|greengrocer|wholesale|health_food)$"](around:${r},${origin.lat},${origin.lon});out center tags 150;`;
-  let elements = null;
-  let lastError = null;
-  for (const endpoint of OVERPASS) {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 20000);
-    const relay = () => ctl.abort();
-    if (signal) signal.addEventListener('abort', relay, { once: true });
-    try {
-      const res = await fetch(endpoint, { method: 'POST', body: new URLSearchParams({ data: query }), signal: ctl.signal });
-      if (!res.ok) { lastError = new Error(`Map server answered ${res.status}`); continue; }
-      const data = await res.json();
-      elements = Array.isArray(data.elements) ? data.elements : [];
-      break;
-    } catch (e) {
-      if (signal && signal.aborted) throw e;
-      lastError = e;
-    } finally {
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', relay);
+/** Asks the phone for its location. Rejects with a friendly message. */
+export function locate() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('This phone can’t share its location with Cart & Cook. Type your ZIP code instead.'));
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (err) => {
+        if (err && err.code === 1) {
+          reject(new Error('Location is off for Cart & Cook. Turn it on in Settings › Privacy & Security › Location Services, or type your ZIP code.'));
+        } else {
+          reject(new Error('Your location couldn’t be found just now. Try again, or type your ZIP code.'));
+        }
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
+    );
+  });
+}
+
+/** The ZIP code and town at a point, for display and prices. */
+export async function reverseZip(lat, lon, signal) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`, { signal });
+    if (!res.ok) return { postcode: '', label: '' };
+    const a = (await res.json()).address || {};
+    return { postcode: (a.postcode || '').slice(0, 10), label: [a.city || a.town || a.village || a.suburb || a.county, a.state].filter(Boolean).join(', ') };
+  } catch (e) {
+    if (signal && signal.aborted) throw e;
+    return { postcode: '', label: '' };
   }
-  if (!elements) {
-    const e = new Error('The store map is busy right now. Wait a few seconds and try again.');
-    e.cause = lastError;
-    throw e;
+}
+
+const sleep = (ms, signal) => new Promise((resolve, reject) => {
+  const t = setTimeout(resolve, ms);
+  if (signal) signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
+});
+
+async function overpassStores(origin, radiusM, signal) {
+  const r = Math.round(radiusM);
+  const query = `[out:json][timeout:20];nwr["shop"~"^(supermarket|grocery|greengrocer|wholesale|health_food)$"](around:${r},${origin.lat},${origin.lon});out center tags 150;`;
+  const ctl = new AbortController();
+  const budget = setTimeout(() => ctl.abort(), 9000);
+  const relay = () => ctl.abort();
+  if (signal) signal.addEventListener('abort', relay, { once: true });
+  try {
+    for (const endpoint of OVERPASS) {
+      try {
+        const res = await fetch(endpoint, { method: 'POST', body: new URLSearchParams({ data: query }), signal: ctl.signal });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (Array.isArray(data.elements)) return data.elements;
+      } catch (e) {
+        if (ctl.signal.aborted) break;
+      }
+    }
+    return null;
+  } finally {
+    clearTimeout(budget);
+    if (signal) signal.removeEventListener('abort', relay);
   }
-  return parseStores(elements, origin);
+}
+
+// Nominatim answers "supermarket" inside a box, plus big chains by name. Its policy asks for
+// at most one request a second, so the queries are spaced out.
+async function nominatimStores(origin, radiusM, signal) {
+  const box = (m) => {
+    const dLat = m / 111320;
+    const dLon = m / (111320 * Math.cos((origin.lat * Math.PI) / 180));
+    return `${origin.lon - dLon},${origin.lat + dLat},${origin.lon + dLon},${origin.lat - dLat}`;
+  };
+  const ask = async (q, m) => {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&bounded=1&limit=40&addressdetails=1&extratags=1&viewbox=${box(m)}&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`Place search answered ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  };
+  const out = [];
+  const first = await ask('supermarket', radiusM);
+  out.push(...first);
+  if (first.length >= 40) { await sleep(1100, signal); out.push(...(await ask('supermarket', radiusM / 2.5))); }
+  for (const name of ['Walmart', 'Costco']) {
+    await sleep(1100, signal);
+    try { out.push(...(await ask(name, radiusM))); } catch (e) { if (signal && signal.aborted) throw e; }
+  }
+  const SHOPS = new Set(['supermarket', 'grocery', 'greengrocer', 'wholesale', 'department_store', 'health_food']);
+  return out
+    .filter((x) => x && x.category === 'shop' && SHOPS.has(x.type) && x.name)
+    .map((x) => {
+      const a = x.address || {};
+      const e = x.extratags || {};
+      return {
+        type: x.osm_type, id: x.osm_id, lat: Number(x.lat), lon: Number(x.lon),
+        tags: {
+          shop: x.type === 'department_store' ? 'supermarket' : x.type, name: x.name, brand: e.brand || '',
+          'addr:housenumber': a.house_number || '', 'addr:street': a.road || '',
+          'addr:city': a.city || a.town || a.village || '', 'addr:postcode': a.postcode || '',
+          opening_hours: e.opening_hours || '',
+        },
+      };
+    });
+}
+
+/**
+ * Grocery stores within radiusM meters of a point, nearest first. Asks two OpenStreetMap
+ * services at once and merges what they find, so one being busy doesn't break the search.
+ */
+export async function findStores(origin, radiusM, signal) {
+  const [a, b] = await Promise.allSettled([overpassStores(origin, radiusM, signal), nominatimStores(origin, radiusM, signal)]);
+  if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
+  const elements = [];
+  if (a.status === 'fulfilled' && a.value) elements.push(...a.value);
+  if (b.status === 'fulfilled' && b.value) elements.push(...b.value);
+  if (!elements.length && (a.status === 'rejected' || !a.value) && b.status === 'rejected') {
+    throw new Error('The store map didn’t answer. Check your internet connection and try again.');
+  }
+  return parseStores(elements, origin).filter((s) => s.dist <= radiusM * 1.2);
 }
 
 export function parseStores(elements, origin) {
@@ -166,12 +254,14 @@ export function parseStores(elements, origin) {
     const name = (t.name || t.brand || '').trim();
     if (!name || lat == null || lon == null) continue;
     const dist = distanceM(origin.lat, origin.lon, lat, lon);
-    const key = name.toLowerCase() + '|' + Math.round(dist / 60);
-    if (seen.has(key)) continue;
+    const id = `${el.type}/${el.id}`;
+    const key = name.toLowerCase() + '|' + Math.round(dist / 150);
+    if (seen.has(key) || seen.has(id)) continue;
     seen.add(key);
+    seen.add(id);
     const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
     out.push({
-      id: `${el.type}/${el.id}`,
+      id,
       name,
       brand: (t.brand || '').trim(),
       kind: t.shop,

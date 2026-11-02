@@ -8,10 +8,13 @@ running on your phone**, writes the meal plan, the recipes and a priced shopping
   [LiteRT-LM](https://ai.google.dev/edge/litert-lm) web runtime and your phone's GPU (WebGPU).
   The model downloads once (2.0 GB) and is stored privately on the phone. After that, plans and
   recipes work offline, and nothing you type is sent anywhere.
-- **Stores by ZIP code.** Type your ZIP code (no location access needed) and it lists the
-  supermarkets and grocery stores around it from OpenStreetMap, with distance, address, hours,
-  a rough price level, the chain's own brands and directions in Apple Maps. The closest store is
-  picked for you; tap another to switch.
+- **Quick start.** A launch screen loads Gemma onto the phone's GPU and warms it up while the
+  app opens, so the first plan starts right away.
+- **Stores by ZIP code or location.** Type your ZIP code, or tap the location button, and it
+  lists the supermarkets and grocery stores around you from OpenStreetMap (Overpass and
+  Nominatim, asked together so one being busy doesn't break the search), with distance,
+  address, hours, a rough price level, the chain's own brands and directions in Apple Maps.
+  The closest store is picked for you; tap another to switch.
 - **Brand names and real prices.** Gemma writes the shopping list with the store's own brands
   (Great Value at Walmart, Kirkland Signature at Costco, Goldhen and Happy Farms at ALDI, and so
   on). Its prices are estimates, so every item has a link to that store's own website (or its
@@ -21,6 +24,9 @@ running on your phone**, writes the meal plan, the recipes and a priced shopping
   what each meal costs, and a "Make it cheaper" button when the list runs over.
 - **Shopping list.** Grouped by aisle, tick items off as you shop, and share it to Notes,
   Messages or Reminders.
+- **On the Lock Screen.** One button shows the items left to buy as a notification you can read
+  without unlocking (needs the app opened from the Home Screen and notifications allowed), or
+  makes a Lock Screen wallpaper picture of the list.
 
 ## Put it on your iPhone
 

@@ -50,6 +50,9 @@ const ICONS = {
   egg: '<svg viewBox="0 0 24 24"><path d="M12 3.5c3.4 0 6 5.3 6 9.4a6 6 0 0 1-12 0c0-4.1 2.6-9.4 6-9.4z"/><circle cx="12" cy="13.5" r="2.4"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M19.5 11a7.5 7.5 0 1 0-2.2 5.5M19.5 4.5V11H13"/></svg>',
   external: '<svg viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5L11 13M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>',
+  lock: '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+  bell: '<svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
+  image: '<svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16l-5-5-8.5 8.5"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12"/></svg>',
 };
 
@@ -317,6 +320,7 @@ function buildForm() {
   $('#notes').addEventListener('input', (e) => { state.inputs.notes = e.target.value.slice(0, 500); onChange(); });
   $('#makePlan').addEventListener('click', () => makePlan());
 
+  $('#locateBtn').addEventListener('click', () => searchNearMe());
   const zip = $('#zip');
   let zipTimer = 0;
   zip.addEventListener('input', () => {
@@ -394,6 +398,7 @@ const LEVEL_LABEL = ['', '$ Budget', '$$', '$$$'];
 function renderStoreRow() {
   const box = $('#storeRow');
   const s = state.search;
+  $('#locateBtn').disabled = s.phase === 'searching';
   const st = state.store;
   let content;
   if (s.phase === 'searching') {
@@ -879,12 +884,12 @@ function friendlyError(e) {
   return `Gemma stopped unexpectedly${detail ? ` (${detail})` : ''}. Close other apps, then try again.`;
 }
 
-async function ensureLoaded() {
+async function ensureLoaded(onStage) {
   if (gemma.isLoaded()) return;
   state.model.phase = 'loading';
   renderModelCard();
   try {
-    await gemma.load();
+    await gemma.load(onStage);
     state.model.phase = 'loaded';
   } catch (e) {
     state.model.phase = e.code === 'not_downloaded' ? 'absent' : 'downloaded';
@@ -1050,6 +1055,36 @@ function storeFrom(st) {
   };
 }
 
+async function searchNearMe() {
+  const s = state.search;
+  if (searchCtl) searchCtl.abort();
+  searchCtl = new AbortController();
+  const signal = searchCtl.signal;
+  s.phase = 'searching'; s.message = ''; s.query = 'your location';
+  renderStores();
+  renderStoreRow();
+  try {
+    const pos = await stores.locate();
+    if (signal.aborted) return;
+    s.origin = { lat: pos.lat, lon: pos.lon };
+    const where = await stores.reverseZip(pos.lat, pos.lon, signal);
+    if (where.postcode) {
+      state.inputs.zip = where.postcode;
+      state.inputs.area = where.postcode;
+      s.query = where.postcode;
+    }
+    s.label = where.label || 'your location';
+    syncForm();
+    await runStoreSearch(signal);
+  } catch (e) {
+    if (signal.aborted) return;
+    s.phase = 'error';
+    s.message = e.message || 'Your location couldn’t be found. Type your ZIP code instead.';
+    renderStores();
+    renderStoreRow();
+  }
+}
+
 async function searchZip(raw) {
   const zip = String(raw || '').trim().slice(0, 10);
   if (!zip) return;
@@ -1137,6 +1172,7 @@ function renderStores() {
       h('label', { class: 'row-label', for: 'zipStores' }, 'ZIP code'),
       zipIn,
       h('button', { type: 'button', class: 'btn primary', disabled: busy, onclick: () => searchZip(zipIn.value) }, icon('search'), busy ? 'Finding…' : 'Find stores')),
+    h('button', { type: 'button', class: 'btn tinted block', disabled: busy, onclick: searchNearMe }, icon('locate'), 'Use my location'),
     h('div', { class: 'radius' }, h('span', { class: 'row-label', style: 'font-size:15px' }, 'Within'), radius),
   )];
 
@@ -1156,7 +1192,7 @@ function renderStores() {
     }
   } else {
     parts.push(h('div', { class: 'glass empty', style: 'margin-top:16px' }, icon('pin'),
-      h('p', null, 'Type your ZIP code to see the grocery stores around it. Pick the one you shop at and Gemma prices your list with that store’s own brands.')));
+      h('p', null, 'Type your ZIP code or tap Use my location to see the grocery stores around you. Pick the one you shop at and Gemma prices your list with that store’s own brands.')));
   }
 
   const typed = h('input', { type: 'text', id: 'storeText', placeholder: 'Type a store name', value: state.inputs.storeText || '', autocomplete: 'off' });
@@ -1426,6 +1462,170 @@ function priceNote(rec) {
   return `${base} online.`;
 }
 
+// ---------------------------------------------------------------------------
+// Lock Screen: a notification with the items left, or a wallpaper picture
+// ---------------------------------------------------------------------------
+function openLockSheet(rec) {
+  const left = rec.list.filter((it) => !it.got).length;
+  const msg = h('div', { class: 'lock-msg', role: 'status', 'aria-live': 'polite' });
+  const notifBtn = h('button', { type: 'button', class: 'btn primary block' }, icon('bell'), 'Show as a notification');
+  const wallBtn = h('button', { type: 'button', class: 'btn plain block' }, icon('image'), 'Save as a Lock Screen picture');
+  notifBtn.addEventListener('click', async () => {
+    notifBtn.disabled = true;
+    try { msg.replaceChildren(await showListNotification(rec)); } finally { notifBtn.disabled = false; }
+  });
+  wallBtn.addEventListener('click', async () => {
+    wallBtn.disabled = true;
+    try { msg.replaceChildren(...[].concat(await saveListWallpaper(rec))); } finally { wallBtn.disabled = false; }
+  });
+  sheet.replaceChildren(h('div', { class: 'handle', 'aria-hidden': 'true' }), h('div', { class: 'sheet-scroll' },
+    h('div', { class: 'sheet-head' },
+      h('div', { class: 'plate lunch' }, icon('lock')),
+      h('div', null,
+        h('span', { class: 'meal-type' }, 'Shopping list'),
+        h('h2', { id: 'sheetTitle' }, 'Put it on your Lock Screen'),
+        h('p', null, left ? `${plural(left, 'item', 'items')} left to buy` : 'Everything is ticked off')),
+      h('button', { type: 'button', class: 'close', 'aria-label': 'Close', onclick: () => sheet.close() }, icon('close'))),
+    h('div', { class: 'lock-option' }, notifBtn,
+      h('p', null, 'Your items show up as a notification you can read without unlocking. Tap it to open the list. After you tick things off, tap this again to update it.')),
+    h('div', { class: 'lock-option' }, wallBtn,
+      h('p', null, 'Makes a picture of the list sized for your iPhone. Save it, then in Photos tap Share › Use as Wallpaper.')),
+    msg));
+  if (!sheet.open) sheet.showModal();
+}
+
+async function showListNotification(rec) {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    return standalone
+      ? 'This iPhone doesn’t let web apps show notifications. Use the Lock Screen picture instead.'
+      : 'iPhone only lets apps opened from the Home Screen show notifications. In Safari tap Share › Add to Home Screen, open Cart & Cook from that icon, and try again.';
+  }
+  let permission = Notification.permission;
+  if (permission === 'default') {
+    try { permission = await Notification.requestPermission(); } catch (e) { permission = 'denied'; }
+  }
+  if (permission !== 'granted') return 'Notifications are off for Cart & Cook. Turn them on in Settings › Notifications › Cart & Cook, then try again.';
+  const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 4000))]);
+  if (!reg) return 'The app isn’t fully installed yet. Close it, open it again from the Home Screen, and try again.';
+  const money = moneyFmt(rec.inputs.currency);
+  const left = rec.list.filter((it) => !it.got);
+  const where = rec.store ? rec.store.name : rec.inputs.storeText;
+  const title = left.length ? `Shopping list${where ? ` · ${where}` : ''}` : 'Shopping list done';
+  const body = left.length
+    ? left.map((it) => `○ ${it.item}${it.brand ? ` (${it.brand})` : ''}${it.size ? `, ${it.size}` : ''}`).join('\n')
+      + `\n${plural(left.length, 'item', 'items')} left · about ${money(left.reduce((a, it) => a + it.price, 0))}`
+    : 'Everything is in your cart.';
+  try {
+    await reg.showNotification(title, { body, tag: 'cartcook-list', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', data: { url: './#list' } });
+  } catch (e) {
+    return 'The notification couldn’t be shown. Use the Lock Screen picture instead.';
+  }
+  return 'Done. Lock your phone to see your list. Tap this again after you tick things off to update it.';
+}
+
+function wallpaperCanvas(rec) {
+  const W = 1206, H = 2622; // iPhone 17 Pro screen, in pixels
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#2B140E');
+  bg.addColorStop(0.55, '#14100E');
+  bg.addColorStop(1, '#0C1410');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, W, H);
+  const glow = (x, y, r, color) => {
+    const rg = g.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, color);
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, W, H);
+  };
+  glow(200, 350, 900, 'rgba(242,122,58,0.45)');
+  glow(1050, 2300, 900, 'rgba(70,200,130,0.28)');
+
+  // Leave the top for the clock and the bottom for the flashlight and camera buttons.
+  const top = 1020, bottom = H - 330, left = 96, right = W - 96;
+  const radius = 64;
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.strokeStyle = 'rgba(255,255,255,0.16)';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.roundRect(left - 40, top - 40, right - left + 80, bottom - top + 80, radius);
+  g.fill();
+  g.stroke();
+
+  const items = rec.list.filter((it) => !it.got);
+  const where = rec.store ? rec.store.name : rec.inputs.storeText;
+  g.fillStyle = '#FFFFFF';
+  g.font = '800 78px "Bricolage Grotesque", -apple-system, system-ui, sans-serif';
+  g.textBaseline = 'alphabetic';
+  g.fillText('Shopping list', left, top + 70);
+  g.fillStyle = 'rgba(255,255,255,0.7)';
+  g.font = '500 40px -apple-system, system-ui, sans-serif';
+  g.fillText(`${where ? where + ' · ' : ''}${plural(items.length, 'item', 'items')}`, left, top + 132);
+
+  const listTop = top + 210, listBottom = bottom - 90;
+  const cols = items.length > 16 ? 2 : 1;
+  const perCol = Math.max(1, Math.ceil(items.length / cols));
+  const line = Math.max(46, Math.min(96, Math.floor((listBottom - listTop) / perCol)));
+  const size = Math.max(30, Math.min(48, Math.floor(line * 0.52)));
+  const colW = (right - left) / cols;
+  const fit = (text, max) => {
+    if (g.measureText(text).width <= max) return text;
+    let t = text;
+    while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1);
+    return t + '…';
+  };
+  items.forEach((it, i) => {
+    const col = Math.floor(i / perCol);
+    const row = i % perCol;
+    const x = left + col * colW;
+    const y = listTop + row * line + size;
+    g.strokeStyle = 'rgba(255,255,255,0.75)';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(x + size * 0.45, y - size * 0.36, size * 0.38, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = '#FFFFFF';
+    g.font = `600 ${size}px -apple-system, system-ui, sans-serif`;
+    const label = it.brand ? `${it.item} · ${it.brand}` : it.item;
+    g.fillText(fit(label, colW - size * 1.4 - 24), x + size * 1.25, y);
+  });
+  if (!items.length) {
+    g.fillStyle = '#FFFFFF';
+    g.font = '600 52px -apple-system, system-ui, sans-serif';
+    g.fillText('Everything is in your cart.', left, listTop + 60);
+  }
+  g.fillStyle = 'rgba(255,255,255,0.7)';
+  g.font = '600 40px -apple-system, system-ui, sans-serif';
+  const total = items.reduce((a, it) => a + it.price, 0);
+  g.fillText(`About ${moneyFmt(rec.inputs.currency)(total)} · Cart & Cook`, left, bottom);
+  return c;
+}
+
+async function saveListWallpaper(rec) {
+  const canvas = wallpaperCanvas(rec);
+  const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+  if (!blob) return 'The picture couldn’t be made. Try again.';
+  const file = new File([blob], 'shopping-list.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return 'Saved? Open Photos, tap the picture, then Share › Use as Wallpaper and set it on the Lock Screen.';
+    } catch (e) {
+      if (e && e.name === 'AbortError') return '';
+    }
+  }
+  // Fallback: show the picture so it can be saved with a long press.
+  const url = URL.createObjectURL(blob);
+  return [
+    h('p', null, 'Press and hold the picture, tap Save to Photos, then in Photos tap Share › Use as Wallpaper.'),
+    h('img', { class: 'lock-preview', src: url, alt: 'Your shopping list as a Lock Screen picture' }),
+  ];
+}
+
 function renderList() {
   const box = $('#listBody');
   const rec = state.record;
@@ -1495,7 +1695,8 @@ function renderList() {
     updateBadge();
     renderList();
   });
-  parts.push(h('div', { class: 'list-actions' }, shareBtn, untick),
+  const lockBtn = h('button', { type: 'button', class: 'btn tinted block', onclick: () => openLockSheet(rec) }, icon('lock'), 'Put list on Lock Screen');
+  parts.push(h('div', { class: 'list-actions' }, lockBtn), h('div', { class: 'list-actions', style: 'margin-top:10px' }, shareBtn, untick),
     h('p', { class: 'fine', style: 'margin-top:14px' }, priceNote(rec)));
   box.replaceChildren(...parts);
 }
@@ -1512,9 +1713,74 @@ renderModelCard();
 updateCta();
 updateBadge();
 showTab();
-refreshModelState();
+boot();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+async function warmUp() {
+  // A tiny first answer gets the GPU ready, so the first real plan starts right away.
+  await Promise.race([
+    gemma.generate('Reply with OK.', { temperature: 0.1, maxOutputTokens: 2 }).catch(() => {}),
+    new Promise((r) => setTimeout(r, 8000)),
+  ]);
+}
+
+async function boot() {
+  const splash = $('#splash');
+  const status = $('#splashStatus');
+  const bar = $('#splashBar');
+  const skip = $('#splashSkip');
+  const t0 = performance.now();
+  let closed = false;
+  const set = (text, pct, slow) => {
+    status.textContent = text;
+    bar.classList.toggle('slow', !!slow);
+    bar.style.width = pct + '%';
+  };
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    splash.classList.add('gone');
+    setTimeout(() => { splash.hidden = true; }, 400);
+  };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  skip.addEventListener('click', close);
+
+  set('Opening…', 18);
+  await refreshModelState();
+  if (state.model.phase !== 'downloaded') {
+    set('Ready', 100);
+    await wait(Math.max(0, 650 - (performance.now() - t0)));
+    close();
+    return;
+  }
+  const skipTimer = setTimeout(() => { skip.hidden = false; }, 7000);
+  try {
+    set('Getting Gemma 4 ready…', 30);
+    await ensureLoaded((stage) => {
+      if (stage === 'runtime') set('Starting the AI engine…', 42);
+      if (stage === 'model') set('Loading Gemma 4 onto your iPhone’s chip…', 88, true);
+    });
+    if (closed) return;
+    set('Warming up…', 94);
+    await warmUp();
+    set('Gemma 4 is ready', 100);
+    await wait(300);
+  } catch (e) {
+    set('Gemma couldn’t start. You can still use the app.', 100);
+    state.model.message = friendlyError(e);
+    await wait(1800);
+  } finally {
+    clearTimeout(skipTimer);
+    close();
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'open-list') go('list');
+  });
+}
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('./sw.js').catch(() => { /* offline support is optional */ });
 }
 

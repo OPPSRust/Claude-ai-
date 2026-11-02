@@ -23,6 +23,14 @@
 <body>
   <div class="aura" aria-hidden="true"></div>
 
+  <div id="splash" class="splash" role="status" aria-live="polite">
+    <img class="splash-icon" src="icons/icon-192.png" alt="" width="96" height="96">
+    <div class="splash-name">Cart &amp; Cook</div>
+    <div class="splash-status" id="splashStatus">Opening…</div>
+    <div class="splash-bar" aria-hidden="true"><span id="splashBar"></span></div>
+    <button type="button" class="btn plain small" id="splashSkip" hidden>Continue while Gemma loads</button>
+  </div>
+
   <main id="app">
     <!-- PLAN -->
     <section class="tab" id="tab-plan" data-tab="plan" aria-labelledby="plan-title">
@@ -66,7 +74,12 @@
       <div class="group glass">
         <div class="row">
           <label class="row-label" for="zip">ZIP code</label>
-          <input id="zip" class="zip-input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="e.g. 30306" enterkeyhint="search">
+          <div class="zip-wrap">
+            <input id="zip" class="zip-input" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="e.g. 30306" enterkeyhint="search">
+            <button type="button" class="locate-btn" id="locateBtn" aria-label="Use my location">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5L3.5 10.6l7 2.9 2.9 7z"/></svg>
+            </button>
+          </div>
         </div>
         <div id="storeRow"></div>
       </div>

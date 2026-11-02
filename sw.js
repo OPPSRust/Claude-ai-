@@ -1,7 +1,7 @@
 // Keeps Cart & Cook working offline: the app files, fonts and the Gemma runtime are cached.
 // The 2 GB model itself is stored separately by the app (private file storage), not here.
 
-const SHELL_CACHE = 'cc-shell-v2';
+const SHELL_CACHE = 'cc-shell-v3';
 const RUNTIME_CACHE = 'cc-runtime-v1';
 const SHELL = [
   './',
@@ -72,3 +72,20 @@ async function cacheFirst(req) {
   if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(() => {});
   return res;
 }
+
+// Tapping the shopping-list notification opens the app on the List tab.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || './#list', self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const w of windows) {
+        if ('focus' in w) {
+          w.postMessage({ type: 'open-list' });
+          return w.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
