@@ -1,5 +1,11 @@
 import * as gemma from './gemma.js';
 import * as stores from './stores.js';
+import { onBoot, beginLoad, endLoad } from './startup-guard.js';
+import { logEvent, readLog, report } from './diagnostics.js';
+
+// localStorage itself can throw when site data is blocked; the guard and log handle null.
+const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+let gpuVendor = 'unknown';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -506,8 +512,15 @@ function renderModelCard() {
         h('div', { class: 'model-actions' }, h('button', { type: 'button', class: 'btn plain', onclick: () => download && download.pause() }, 'Pause')));
       break;
     case 'downloaded':
-      card.append(h('p', { class: 'model-text' }, 'Saved on this iPhone. It wakes up when you make a plan and works without internet.'),
-        h('div', { class: 'model-actions' }, removeButton()));
+      if (m.crashedLastTime) {
+        card.append(h('p', { class: 'model-text' }, 'Gemma closed while loading last time. That usually means your iPhone needed the memory for something else. Close other apps, then tap Load Gemma.'),
+          h('div', { class: 'model-actions' },
+            h('button', { type: 'button', class: 'btn primary', onclick: loadGemmaNow }, icon('chip'), 'Load Gemma'),
+            removeButton()));
+      } else {
+        card.append(h('p', { class: 'model-text' }, 'Saved on this iPhone. It wakes up when you make a plan and works without internet.'),
+          h('div', { class: 'model-actions' }, removeButton()));
+      }
       break;
     case 'loading':
       card.append(h('div', { class: 'writing' }, h('div', { class: 'spinner' }), 'Waking Gemma up on your iPhone’s GPU…'));
@@ -522,7 +535,40 @@ function renderModelCard() {
           removeButton()));
       break;
   }
+  const diagBox = h('div', { class: 'diag-box' });
+  card.append(h('div', { class: 'model-foot' },
+    h('button', { type: 'button', class: 'linkbtn', onclick: () => copyDetails(diagBox) }, 'Copy details'),
+    diagBox));
   box.replaceChildren(card);
+}
+
+async function loadGemmaNow() {
+  try {
+    await ensureLoaded();
+    await warmUp();
+    toast('Gemma 4 is ready');
+  } catch (e) {
+    toast(friendlyError(e));
+  }
+}
+
+async function copyDetails(box) {
+  const text = report(readLog(store), {
+    userAgent: navigator.userAgent,
+    url: location.href,
+    standalone: window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+    gpu: gpuVendor,
+  });
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Details copied');
+  } catch (e) {
+    const ta = h('textarea', { class: 'diag-text', readonly: true, rows: '8', 'aria-label': 'Details to send for help' });
+    ta.value = text;
+    box.replaceChildren(h('p', { class: 'model-text' }, 'Select all of this text and copy it:'), ta);
+    ta.focus();
+    ta.select();
+  }
 }
 
 function removeButton() {
@@ -556,6 +602,7 @@ let cardTick = 0;
 async function startDownload() {
   if (download) return;
   state.model.message = '';
+  logEvent(store, 'download:start', String(state.model.loaded || 0));
   try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) { /* optional */ }
   try {
     const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
@@ -603,6 +650,7 @@ async function startDownload() {
   } finally {
     download = null;
     keepAwake('download', false);
+    logEvent(store, 'download:end', state.model.phase);
     renderModelCard();
     updateCta();
   }
@@ -888,10 +936,19 @@ async function ensureLoaded(onStage) {
   if (gemma.isLoaded()) return;
   state.model.phase = 'loading';
   renderModelCard();
+  beginLoad(store);
   try {
-    await gemma.load(onStage);
+    await gemma.load((stage) => {
+      logEvent(store, 'gemma:' + stage);
+      if (onStage) onStage(stage);
+    });
+    endLoad(store, true);
+    logEvent(store, 'gemma:loaded');
     state.model.phase = 'loaded';
+    state.model.crashedLastTime = false;
   } catch (e) {
+    endLoad(store, false);
+    logEvent(store, 'gemma:error', (e && e.message) || String(e));
     state.model.phase = e.code === 'not_downloaded' ? 'absent' : 'downloaded';
     throw e;
   } finally {
@@ -1745,8 +1802,22 @@ async function boot() {
   skip.addEventListener('click', close);
 
   set('Opening…', 18);
+  const nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
+  logEvent(store, 'boot', `${(nav && nav.type) || '?'} ${location.href}`);
+  const guard = onBoot(store);
+  state.model.crashedLastTime = guard.crashedLastTime;
+  state.model.crashes = guard.crashes;
+  if (guard.crashedLastTime) logEvent(store, 'guard', `previous load did not finish (crashes: ${guard.crashes})`);
+  if (navigator.gpu) {
+    navigator.gpu.requestAdapter().then((a) => {
+      gpuVendor = (a && a.info && [a.info.vendor, a.info.architecture].filter(Boolean).join(' ')) || (a ? 'available' : 'none');
+    }).catch(() => { gpuVendor = 'error'; });
+  } else {
+    gpuVendor = 'none';
+  }
   await refreshModelState();
-  if (state.model.phase !== 'downloaded') {
+  logEvent(store, 'model', state.model.phase);
+  if (state.model.phase !== 'downloaded' || !guard.autoLoad) {
     set('Ready', 100);
     await wait(Math.max(0, 650 - (performance.now() - t0)));
     close();
@@ -1773,6 +1844,8 @@ async function boot() {
     close();
   }
 }
+
+window.addEventListener('pagehide', () => logEvent(store, 'pagehide'));
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => {
