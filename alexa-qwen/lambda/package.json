@@ -1,0 +1,11 @@
+{
+  "name": "alexa-qwen",
+  "version": "1.0.0",
+  "description": "Alexa skill that answers with Qwen3.5",
+  "main": "index.js",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.86.0"
+  }
+}

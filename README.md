@@ -56,6 +56,7 @@ it also needs internet once to fetch the AI runtime, which is then cached for of
 | `download-worker.js` | Downloads the model into private storage, resumable |
 | `stores.js` | ZIP lookup, OpenStreetMap store search, chain brands and price links |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Home Screen app and offline support |
+| `alexa-qwen/` | Separate Alexa skill that puts Qwen3.5 on an Amazon Echo ([setup guide](alexa-qwen/README.md)) |
 
 ## Notes
 

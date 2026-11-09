@@ -1,0 +1,41 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "my qwen",
+      "intents": [
+        {
+          "name": "AskQwenIntent",
+          "slots": [{ "name": "query", "type": "AMAZON.SearchQuery" }],
+          "samples": [
+            "ask {query}",
+            "ask qwen {query}",
+            "question {query}",
+            "tell me {query}",
+            "what is {query}",
+            "what are {query}",
+            "who is {query}",
+            "who was {query}",
+            "how do {query}",
+            "how does {query}",
+            "how to {query}",
+            "why is {query}",
+            "why do {query}",
+            "when is {query}",
+            "where is {query}",
+            "can you {query}",
+            "explain {query}",
+            "help me {query}",
+            "write {query}",
+            "give me {query}"
+          ]
+        },
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] }
+      ],
+      "types": []
+    }
+  }
+}
